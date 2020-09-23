@@ -10,7 +10,7 @@ from PIL import Image, ImageTk
 from blocs import config, bdd, main, assistant
 
 
-version = "2.0.1"
+version = "2.0.2"
 
 welcome_text = """Bienvenue dans le programme d'attribution des places du Club Q !
 
@@ -43,7 +43,7 @@ def go_direct():
     ok = main.unlock()                      # Demande le mot de passe
     if not ok:
         return
-        
+
     loader_frame.pack_forget()              # Efface la fenêtre de lancement
     main.build_root()                       # Construit l'interface (frames & menu)
     main.toogle_menubar(activate=False)     # Désactive le menu

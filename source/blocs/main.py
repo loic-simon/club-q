@@ -70,7 +70,7 @@ def build_root():
     frame_clients = tk.Frame(config.root, bg="yellow")
     config.liste_clients = config.ItemsTreeview(frame_clients,
         columns=["Nom", "Promo", "Dem.", "Attr.","Mécont."],
-        insert_func=lambda c: [c.nomprenom, c.promo or c.autre, c.nb_places_demandees(), c.nb_places_attribuees(), round(c.mecontentement,3)],
+        insert_func=lambda c: [c.nomprenom, c.promo or c.autre, c.nb_places_demandees(), c.nb_places_attribuees(), round(c.mecontentement or 0, 3)],
         sizes=[160, 60, 50, 50, 68],
         stretches=[True, False, False, False, False],
         filter_column="Nom",
