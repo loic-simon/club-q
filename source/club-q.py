@@ -10,7 +10,7 @@ from PIL import Image, ImageTk
 from blocs import config, bdd, main, assistant
 
 
-version = "2.0.2"
+version = "2.0.3"
 
 welcome_text = """Bienvenue dans le programme d'attribution des places du Club Q !
 
@@ -50,10 +50,10 @@ def go_direct():
 
     main.connect()                          # Connexion aux bdd bde-espci.fr
     main.load_saisons_and_current()         # Charge config.saisons, config.saison (= saison la plus récente)
-    main.load(config.saison)                # Charge config.spectacles, config.voeux, config.clients et remplissage Treeviews
     main.build_saisons_menu()               # Menu de changement de saison
-
     main.toogle_menubar(activate=True)      # Réactive le menu
+
+    main.load(config.saison)                # Charge config.spectacles, config.voeux, config.clients et remplissage Treeviews
 
 
 #--------------------------- GESTION DES EXCEPTIONS ----------------------------

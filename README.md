@@ -24,12 +24,12 @@ Le point d'entrée du programme est alors [`source/club-q.py`](source/club-q.py)
 #### Dépendances
 
 * Python 3.6+
-* Packages : SQLAlchemy, PyMySQL, ReportLab, cryptography, Unidecode, Pillow (voir [`requirements.txt`](requirements.txt))
+* Packages : SQLAlchemy, PyMySQL, ReportLab, cryptography, Unidecode, Pillow, natsort (voir [`requirements.txt`](requirements.txt))
 
 Pour installer tous les packages nécessaires, avec [pip](https://pip.pypa.io/en/stable/) (gestionnaire de packages usuel) :
 
 ```bash
-pip install SQLAlchemy PyMySQL reportlab cryptography Unidecode, Pillow
+pip install SQLAlchemy PyMySQL reportlab cryptography Unidecode, Pillow, natsort
 ```
 
 ### Geler le code

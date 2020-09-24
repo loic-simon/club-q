@@ -10,6 +10,7 @@ from tkinter import ttk
 
 from PIL import Image, ImageTk
 import unidecode
+import natsort
 
 from . import tools
 
@@ -369,6 +370,7 @@ class SortableTreeview(ttk.Treeview):
     """Classe fille de ttk.Treeview ajoutant des boutons de tri
 
     *args et **kwargs sont directement passés à ttk.Treeview.
+    Le tri est fait par le module natsort (pypi.org/project/natsort) qui propose un tri « naturel » ("1" < "2" < "12" au lieu de "1" < "12" < "2", par exemple)
     """
 
     def __init__(self, *args, **kwargs):
@@ -422,7 +424,7 @@ class SortableTreeview(ttk.Treeview):
         self.sort_down = sort_down
 
         items = list(self.get_children())
-        items.sort(key=lambda item: self.get(item, column), reverse=sort_down)
+        items.sort(key=natsort.natsort_keygen(lambda item: self.get(item, column)), reverse=sort_down)
         self.set_children("", *items)
 
     def reset(self):
