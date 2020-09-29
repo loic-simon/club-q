@@ -16,7 +16,6 @@ def get(items, **kwargs):
 
     Lève une erreur si l'objet n'existe pas ou n'est pas unique
     """
-
     found = [item for item in items if all(getattr(item, prop) == val for prop, val in kwargs.items())]
     if not found:
         raise ValueError(f"Item « {kwargs} » inconnu")
@@ -25,6 +24,17 @@ def get(items, **kwargs):
     else:
         return found[0]
 
+
+def get_or_none(items, **kwargs):
+    """Renvoie le premier objet de la liste <items> tel que item.prop = <kwargs>[prop], pour tous les prop dans <kwargs>, ou None
+
+    Ex. : tools.get(config.spectacles, id=2)
+          tools.get(config.clients, nom="Allo")
+    """
+    try:
+        return next(item for item in items if all(getattr(item, prop) == val for prop, val in kwargs.items()))
+    except StopIteration:
+        return None
 
 
 def labels_grid(parent, LL, padx=0, pady=0):

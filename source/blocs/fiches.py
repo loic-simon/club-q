@@ -5,7 +5,7 @@ from tkinter import ttk
 
 import webbrowser
 
-from . import config, tools
+from . import config, tools, exportation, publication
 
 
 def fiche_client(event, client=None):
@@ -78,7 +78,14 @@ def fiche_client(event, client=None):
 
     bas.pack(padx=10, fill=tk.X)
 
-    ttk.Button(fen_ele, text="Exporter la fiche", command=lambda: exportation.pdf_client(client)).pack(pady=10)
+    def envoi():
+        filepath = exportation.pdf_client(client, config.tempdir, open_pdf=False)
+        publication.personaliser_puis_envoyer_mail({client: filepath})        # Récupère fromnane, objet, corps... et appelle la fonction d'envoi
+
+    frame_boutons = ttk.Frame(fen_ele)
+    ttk.Button(frame_boutons, text="Exporter la fiche", command=lambda: exportation.pdf_client(client)).pack(padx=5, pady=10, side=tk.LEFT)
+    ttk.Button(frame_boutons, text="Envoyer par email", command=envoi).pack(padx=5, pady=10, side=tk.RIGHT)
+    frame_boutons.pack()
 
 
 

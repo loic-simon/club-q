@@ -308,7 +308,7 @@ def step12():
     consigne.configure(text="""Dernière chose, les fiches PDF élèves / spectacles peuvent être exportées via le menu ad hoc, en sélectionnant simplement le dossier où les stocker.
 Les fiches peuvent aussi être exportées individuellement grâce au bouton en bas de la fenêtre élève / spectacle.
 
-L'envoi des PDF au serveur puis aux élèves reste à faire, ce sera implémenté dans les prochaines versions !""")
+L'envoi des PDF sur le serveur et aux élèves par mail (dans cet ordre !) se fait via le menu « Publier ».""")
 
     suivant_button.configure(text=suivant_text, state=tk.NORMAL)
     suivant_button.configure(command=step13)

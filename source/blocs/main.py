@@ -6,7 +6,7 @@ from tkinter import ttk
 
 import hashlib
 
-from . import config, bdd, tools, fichier, attribution, exportation, fiches, assistant
+from . import config, bdd, tools, fichier, attribution, exportation, publication, fiches, assistant
 
 
 # Variables globales
@@ -113,6 +113,11 @@ def build_root():
     menu_exporter.add_command(label="Exporter les fiches élèves", command=exportation.exporter_fiches_eleves)
     menubar.add_cascade(label="Exporter", menu=menu_exporter)
 
+    menu_publier = tk.Menu(menubar, tearoff=False)
+    menu_publier.add_command(label="Les fiches élèves sur le serveur", command=publication.publier_fiches_serveur)
+    menu_publier.add_command(label="(puis) Envoyer les fiches par mail", command=publication.envoi_fiches_mail)
+    menubar.add_cascade(label="Publier", menu=menu_publier)
+
     config.root.configure(menu=menubar)
     config.root.update()
 
@@ -123,8 +128,8 @@ def unlock():
     PROGRAM_PASSWORD_HASH = config.data.get("PROGRAM_PASSWORD_HASH")
     assert PROGRAM_PASSWORD_HASH, f"PROGRAM_PASSWORD_HASH introuvable"
 
-    DATABASE_URI_ENCRYPTED = config.data.get("DATABASE_URI_ENCRYPTED")
-    assert DATABASE_URI_ENCRYPTED, f"DATABASE_URI_ENCRYPTED introuvable"
+    encryption_table = config.data.get("_encryption_table")         # Dictionnaire paramètre à décrypter: nom une fois décrypté
+    assert encryption_table, f"encryption_table introuvable"
 
     ok = False
     while not ok:
@@ -133,7 +138,11 @@ def unlock():
             return False
         elif tools.hash(pwd) == PROGRAM_PASSWORD_HASH:
             ok = True
-            config.DATABASE_URI = tools.decrypt(pwd, DATABASE_URI_ENCRYPTED)    # On a besoin du mot de passe en clair pour décrypter l'URI
+            for encrname, name in encryption_table.items():
+                encrypted = config.data.get(encrname)                       # Paramètre chiffré
+                assert encrypted, f"{encrname} introuvable"
+                setattr(config, name, tools.decrypt(pwd, encrypted))        # On déchiffre tous les paramètres confidentiels avec le mot de passe en clair
+            del pwd         # On supprime explicitement le mot de passe en clair, dans le doute
         else:
             retry = tk.messagebox.askretrycancel(title=config.TITLE, message="Mot de passe incorrect :(")
             if not retry:       # Appui sur Annuler
@@ -172,6 +181,7 @@ def load(saison, reloading=False):
             return
 
     with config.ContextPopup(config.root, "Récupération des données..."):
+        config.saison = saison
         config.init_var_glob_saison()
 
         try:
@@ -180,7 +190,7 @@ def load(saison, reloading=False):
             bdd.session.rollback()          # Si erreur BDD, toujours rollback dans le doute
 
         # Récupération des salles
-        config.salles = bdd.session.query(bdd.tables["salles"]).all()
+        salles_bdd = bdd.session.query(bdd.tables["salles"]).all()
 
         # Récupération des spectacles de la saison
         spectacles_bdd = bdd.session.query(bdd.tables["spectacles"]).filter_by(saison_id=saison.id).all()
@@ -188,16 +198,24 @@ def load(saison, reloading=False):
         voeux_bdd = bdd.session.query(bdd.tables["voeux"]).filter(bdd.tables["voeux"].spectacle_id.in_([spectacle.id for spectacle in spectacles_bdd])).all()
         # Récupération des clients liés à ces voeux
         clients_bdd = bdd.session.query(bdd.tables["clients"]).filter(bdd.tables["clients"].id.in_([voeu.client_id for voeu in voeux_bdd])).all()
+        # Récupération des participations de ces clients à cette saison
+        participations_bdd = bdd.session.query(bdd.tables["participations"]).filter(bdd.tables["participations"].client_id.in_([client.id for client in clients_bdd])).filter_by(saison_id=config.saison.id).all()
 
         # Passage aux objets enrichis (dans cet ordre, car config.Voeu() a besoin de config.clients et config.spectacles)
+        config.salles = [config.Salle(salle) for salle in salles_bdd]
         config.spectacles = [config.Spectacle(spectacle) for spectacle in spectacles_bdd]
         config.clients = [config.Client(client) for client in clients_bdd]
         config.voeux = [config.Voeu(voeu) for voeu in voeux_bdd]
+        config.participations = [config.Participation(partic) for partic in participations_bdd]
 
         # Remplissage des treeviews
         config.liste_spectacles.insert(*config.spectacles)
         config.liste_clients.insert(*config.clients)
         config.liste_clients.sort("Nom")
+
+        # Vérification des priorités
+        for client in config.clients:
+            client.verif_priorites()
 
         # Détection si tous les mécontentements ont déjà été initialisés précédemment
         if all(client.saison_actuelle_mec == saison.id for client in config.clients):
@@ -209,7 +227,8 @@ def load(saison, reloading=False):
 
 def load_saisons_and_current():
     # Récupération des saisons, détection saison en cours
-    config.saisons = bdd.session.query(bdd.tables["saisons"]).all()
+    bdd_saisons = bdd.session.query(bdd.tables["saisons"]).all()
+    config.saisons = [config.Saison(saison) for saison in bdd_saisons]
     config.saison = max(config.saisons, key=lambda s:s.debut)
 
 
@@ -227,5 +246,5 @@ def toogle_menubar(activate=True):
     global menubar
 
     # nb_menus = len(menubar.winfo_children())      # Ça marche pas du tout, nik
-    for i_menu in range(1, 4):      # Vraiment le jour ou je trouve qui a codé Tk ça va très mal se passer, on est pas dans Matlab ici merde
+    for i_menu in range(1, 5):      # Vraiment le jour ou je trouve qui a codé Tk ça va très mal se passer, on est pas dans Matlab ici merde
         menubar.entryconfig(i_menu, state=tk.ACTIVE if activate else tk.DISABLED)

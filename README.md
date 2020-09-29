@@ -1,9 +1,23 @@
 # club-q
 
+*(Français)*
 Programme Python implémentant une interface graphique pour l'attribution de places de spectacles à des étudiants de l'ESPCI Paris - PSL, dans le cadre de l'activité du club chargé de cette tâche, dit « Club Q ».
 
 Conçu pour un usage dans ce cadre uniquement. Ce programme est basé sur des données privées et organisées de manière spécifique ; l'accès aux données est protégé par mot de passe.
 
+*(English)*
+Python program implementing a graphical interface for allocating show tickets to ESPCI Paris - PSL students, as part of the "Club Q" activity. Designed for use in this setting only. This program relies on private data, organized in a specific way and password-protected.
+
+
+## Fonctionnalités
+
+* Affichage détaillé des étudiants, spectacles et vœux
+* Attribution automatique par minimisation des mécontentements individuels
+* Ajustement manuel des attributions
+* Synchronisation avec le site d'inscription
+* Génération des fiches récapitulatives PDF des élèves et spectacles
+* [v2.1] Publication des fiches élèves individuelles sur le serveur d'inscription
+* [v2.1] Envoi des fiches élèves individuelles par mail
 
 ## Installation
 
@@ -50,7 +64,7 @@ Le programme dispose d'une seule option pour un usage en ligne de commande, `--d
 
 ### Mot de passe
 
-Le hash du mot de passe du programme et l'URI d'accès aux données encryptée peut être redéfinis à l'aide du script [`source/gen_new_pass.py`](source/gen_new_pass.py).
+Le hash du mot de passe du programme et les paramètres sensibles chiffrées peut être redéfinis à l'aide du script [`source/gen_new_pass.py`](source/gen_new_pass.py).
 
 
 ## Contributions
@@ -62,6 +76,7 @@ Ce projet n'est pas ouvert aux contributions extérieures. N'hésitez pas à me 
 
 Ce programme est partagé sous [licence MIT](https://choosealicense.com/licenses/mit/).
 
-© 2020 Loïc Simon – Association GRI – ESPCI Paris - PSL
+© 2020 Loïc Simon – Association GRI – ESPCI Paris - PSL  \
+Basé sur un programme initialement développé par Jessie Mosso 134, Miguel Cano 134 et Guillaume Vidon – logo du club Q par Anaëlle Chrétien 134
 
 Pour toute question, n'hésitez pas à me contacter par mail : [loic.simon@espci.org](mailto:loic.simon@espci.org)

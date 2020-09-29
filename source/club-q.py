@@ -2,6 +2,7 @@ import sys
 import os
 import traceback
 import datetime
+import tempfile
 import tkinter as tk
 from tkinter import ttk
 
@@ -10,7 +11,7 @@ from PIL import Image, ImageTk
 from blocs import config, bdd, main, assistant
 
 
-version = "2.0.3"
+version = "2.1.0"
 
 welcome_text = """Bienvenue dans le programme d'attribution des places du Club Q !
 
@@ -61,13 +62,17 @@ def go_direct():
 def report_exc(exc, val, tb):
     """Affiche un pop-up (et rollback BDD si nécessaire) en cas d'erreur"""
     sys.stderr.write(f"--- {datetime.datetime.now()} Exception :\n{traceback.format_exc()}")    # log système
+
+    widget = config.root.focus_get()        # Widget actuellement focus
+    fenetre = widget.winfo_toplevel()       # Fenêtre de ce widget : permet d'afficher l'erreur sans remonter root au-dessus
+
     if issubclass(exc, bdd.SQLAlchemyError):
         bdd.session.rollback()          # Si erreur BDD, toujours rollback dans le doute
-        tk.messagebox.showerror(title=f"{config.TITLE} - {exc.__name__}", message=f"Exception lors de l'accès aux données. Cela arrive souvent lorsque du temps passe entre deux appels, une requêtre de reconnexion a été envoyée.\n\nRefaire l'action voulue, ça devrait marcher !")
+        tk.messagebox.showerror(title=f"{config.TITLE} - {exc.__name__}", message=f"Exception lors de l'accès aux données. Cela arrive souvent lorsque du temps passe entre deux appels, une requêtre de reconnexion a été envoyée.\n\nRefaire l'action voulue, ça devrait marcher !", parent=fenetre)
     elif config.DEBUG:
-        tk.messagebox.showerror(title=f"{config.TITLE} - {exc.__name__}", message=f"Exception Python :\n{val}\n\n{traceback.format_exc()}")
+        tk.messagebox.showerror(title=f"{config.TITLE} - {exc.__name__}", message=f"Exception Python :\n{val}\n\n{traceback.format_exc()}", parent=fenetre)
     else:
-        tk.messagebox.showerror(title=f"{config.TITLE} - {exc.__name__}", message=f"Exception Python :\n{val}")
+        tk.messagebox.showerror(title=f"{config.TITLE} - {exc.__name__}", message=f"Exception Python :\n{val}", parent=fenetre)
 
 
 try:
@@ -110,7 +115,12 @@ try:
 
     if config.DEBUG:
         print("Entrée dans la mainloop")
-    config.root.mainloop()
+
+    with tempfile.TemporaryDirectory() as config.tempdir:   # Dossier temporaire, effacé à la fermeture du programme
+        if config.DEBUG:
+            print(f"Dossier temporaire créé : {tempdir}")
+
+        config.root.mainloop()
 
 
 except Exception as exc:        # Exception pendant l'initialisation (avant le mainloop)

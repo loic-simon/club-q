@@ -23,9 +23,10 @@ def filenamify(str):
 def exporter_fiches_eleves():
     lien_dossier = tk.filedialog.askdirectory(title="Sélectionnez un dossier pour exporter les fiches PDF individuelles :")
     if lien_dossier:        # Dossier sélectionné (pas Annuler)
-        N_pdf = len(config.clients)
-        for i_pdf, client in enumerate(config.clients):
-            pdf_client(client, lien_dossier, open_pdf=False, i_pdf=i_pdf, N_pdf=N_pdf)
+        with tools.ContextPopup(config.root, "Exportation...") as popup:
+            N_pdf = len(config.clients)
+            for i_pdf, client in enumerate(config.clients):
+                pdf_client(client, lien_dossier, open_pdf=False, i_pdf=i_pdf, N_pdf=N_pdf, popup=popup)
 
         tk.messagebox.showinfo(title="Exportation", message=f"Fiches élèves exportées dans {lien_dossier} !")
 
@@ -33,22 +34,23 @@ def exporter_fiches_eleves():
 def exporter_fiches_spectacles():
     lien_dossier = tk.filedialog.askdirectory(title="Sélectionnez un dossier où les fiches spectacles seront exportées :")
     if lien_dossier:        # Dossier sélectionné (pas Annuler)
-        for spec in config.spectacles:
-            pdf_spectacle(spec, lien_dossier, open_pdf=False)
+        with tools.ContextPopup(config.root, "Exportation...") as popup:
+            for spec in config.spectacles:
+                pdf_spectacle(spec, lien_dossier, open_pdf=False, popup=popup)
 
         tk.messagebox.showinfo(title="Exportation", message=f"Fiches spectacles exportées dans {lien_dossier} !")
 
 
 
-def pdf_client(client, lien_dossier=None, open_pdf=True, i_pdf=None, N_pdf=None):
+def pdf_client(client, lien_dossier=None, open_pdf=True, i_pdf=None, N_pdf=None, popup=None):
 
     if not lien_dossier:
         lien_dossier = tk.filedialog.askdirectory(title=f"Sélectionnez un dossier pour exporter la fiche PDF de {client.prenom} {client.nom} :")
 
     filename = os.path.join(os.path.normpath(lien_dossier), f"{filenamify(client.nomprenom)}.pdf")
 
-    etape = f" {i_pdf}/{N_pdf}" if N_pdf else "..."
-    with config.ContextPopup(config.root, f"Génération du PDF{etape}"):
+    etape = f" {i_pdf+1}/{N_pdf}" if N_pdf else "..."
+    with config.ContextPopup(config.root, f"Génération du PDF{etape}", existing=popup):
         canvas = rl.pdfgen.canvas.Canvas(filename, pagesize=rl.lib.pagesizes.A4)
         canvas.setAuthor("Club Q ESPCI Paris - PSL")
         canvas.setTitle(f"Compte-rendu {client.prenom}{client.nom}")
@@ -117,18 +119,20 @@ def pdf_client(client, lien_dossier=None, open_pdf=True, i_pdf=None, N_pdf=None)
             else:                                   # linux variants
                 subprocess.run(["xdg-open", filename], check=True)
 
+    return filename
 
 
 
-def pdf_spectacle(spec, lien_dossier=None, open_pdf=True, i_pdf=None, N_pdf=None):
+
+def pdf_spectacle(spec, lien_dossier=None, open_pdf=True, i_pdf=None, N_pdf=None, popup=None):
 
     if not lien_dossier:
         lien_dossier = tk.filedialog.askdirectory(title=f"Sélectionnez un dossier pour exporter la fiche PDF de {spec.nom} :")
 
     filename = os.path.join(os.path.normpath(lien_dossier), f"{filenamify(spec.nom)}.pdf")
 
-    etape = f" {i_pdf}/{N_pdf}" if N_pdf else "..."
-    with config.ContextPopup(config.root, f"Génération du PDF{etape}"):
+    etape = f" {i_pdf+1}/{N_pdf}" if N_pdf else "..."
+    with config.ContextPopup(config.root, f"Génération du PDF{etape}", existing=popup):
         canvas = rl.pdfgen.canvas.Canvas(filename, pagesize=rl.lib.pagesizes.A4)
         styles = rl.lib.styles.getSampleStyleSheet()
         styleN = styles["Normal"]
@@ -235,3 +239,5 @@ def pdf_spectacle(spec, lien_dossier=None, open_pdf=True, i_pdf=None, N_pdf=None
                 subprocess.call(("open", filepath))
             else:                                   # linux variants
                 subprocess.run(["xdg-open", filename], check=True)
+
+    return filename

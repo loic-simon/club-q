@@ -40,16 +40,30 @@ with open(os.path.join(basedir, "resources", "data.json"), "r") as df:
     data = json.load(df)
 
 TITLE = "Programme Club Q"
-DATABASE_URI = None     # Valeur décryptée, remplacée à la connexion grâce au mot de passe en clair
+
+DATA_PARAMETERS = {         # Paramètres encryptés nécessaires dans data.json
+    "DATABASE_URI": "URI d'accès aux données (protocol://user:pwd@server/base)",
+    "FTP_HOST": "Adresse de l'hôte FTP",
+    "FTP_USER": "Nom de l'utilisateur FTP",
+    "FTP_PASSWORD": "Mot de passe d'accès FTP",
+    "MAIL_SENDER": "Adresse mail du Club Q",
+}
+for param in DATA_PARAMETERS:
+    globals()[param] = None     # Initialisation à None
+
+MAIL_LOGIN = None           # Demandés lors de l'exécution du programme
+MAIL_PASSWORD = None
 
 lien_logo_q = os.path.join(basedir, "resources", "logo_q.png")
 lien_logo_pc = os.path.join(basedir, "resources", "logo_pc.png")
 
 root = None         # Fenêtre principale
-fen_suivi = None
+fen_suivi = None    # Fenêtre d'attribution
 
 saisons = []
 saison = None
+
+salles = []
 
 # Paramètres par défaut, destinés à être écrasés dans menu.py [ou par lecture params.cfg - pas sûr ça]
 promo_1A = 139
@@ -64,11 +78,12 @@ bonus_autre = -10
 
 def init_var_glob_saison():
     """À appeller à chaque chargement de saison"""
-    global spectacles, clients, voeux, attrib_ss_conflit_done, num_voeux, cas_en_cours, logs
+    global spectacles, clients, voeux, participations, attrib_ss_conflit_done, num_voeux, cas_en_cours, logs
 
     spectacles = []
     clients = []
     voeux = []
+    participations = []
 
     attrib_ss_conflit_done = False
     init_mecontentement_done = False
@@ -90,23 +105,28 @@ def refresh_listes():
 
 #----------------------------- CLASSES DE DONNÉES ------------------------------
 
+def dataclass(initfunc):
+    """Décorateur pour les fonctions __init__ des classes de données : définit self.bdd_cols, self.bdd_item et tous les attributs de données"""
+    def new_initfunc(self, bdd_item):
+        self.bdd_item = bdd_item
+        self.bdd_cols = list(bdd_item.__dict__.keys())        # Noms des colonnes de la table
+        for attr in self.bdd_cols:
+            setattr(self, attr, getattr(bdd_item, attr))
+
+        initfunc(self, bdd_item)        # Reste de l'initialisation
+
+    return new_initfunc
+
+
 class Saison():
     """Saison Qlturelle
 
-    Classe fille de la table 'saisons' : les instances de cette classe doivent être des entrées en base.
-    Cela permet d'accéder directement aux attributs de la table : saison.id, saison.nom...
-
-    Les instances de cette classe se créent à partir de celles de la table : saison = config.Saison(bdd_saison)
-    Il est impossible de créer une instance directement : créer d'abord l'instance de la table, i.e. saison = config.Saison(bdd.tables["saisons"](...))
+    Classe de données liée à la table "saisons" : toutes les colonnes de cette tables (self.bdd_cols) sont des attributs des instances de cette classe, qui contient l'objet SQLAlchemy associé dans self.bdd_item
     """
+    @dataclass
     def __init__(self, bdd_saison):
         """Initialize self à partir d'une entrée de BDD existante"""
-
-        self.bdd_item = bdd_saison
-        self.bdd_cols = list(bdd_saison.__dict__.keys())        # Noms des colonnes de la table
-        for attr in self.bdd_cols:
-            setattr(self, attr, getattr(bdd_saison, attr))
-            # ==> self.id, self.nom, self.promo_orga, self.debut, self.fin
+        # @dataclass => self.id, self.nom, self.promo_orga, self.debut, self.fin
 
     def __repr__(self):
         """Returns repr(self)"""
@@ -116,45 +136,47 @@ class Saison():
 class Salle():
     """Salle de spectacles
 
-    Classe fille de la table 'salles' : les instances de cette classe doivent être des entrées en base.
-    Cela permet d'accéder directement aux attributs de la table : salle.id, salle.nom...
-
-    Les instances de cette classe se créent à partir de celles de la table : salle = config.Salle(bdd_salle)
-    Il est impossible de créer une instance directement : créer d'abord l'instance de la table, i.e. salle = config.Salle(bdd.tables["salles"](...))
+    Classe de données liée à la table "salles" : toutes les colonnes de cette tables (self.bdd_cols) sont des attributs des instances de cette classe, qui contient l'objet SQLAlchemy associé dans self.bdd_item
     """
+    @dataclass
     def __init__(self, bdd_salle):
         """Initialize self à partir d'une entrée de BDD existante"""
-
-        self.bdd_item = bdd_salle
-        self.bdd_cols = list(bdd_salle.__dict__.keys())        # Noms des colonnes de la table
-        for attr in self.bdd_cols:
-            setattr(self, attr, getattr(bdd_salle, attr))
-            # ==> self.id, self.nom, self.description, self.image_path,
-            #     self.url, self.adresse, self.latitude, self.longitude
+        # @dataclass => self.id, self.nom, self.description, self.image_path,
+        #               self.url, self.adresse, self.latitude, self.longitude
 
     def __repr__(self):
         """Returns repr(self)"""
         return f"<Salle #{self.id} ({self.nom})>"
 
 
+class Participation():
+    """Participation d'un client à une saison
+
+    Classe de données liée à la table "participations" : toutes les colonnes de cette tables (self.bdd_cols) sont des attributs des instances de cette classe, qui contient l'objet SQLAlchemy associé dans self.bdd_item
+    """
+    @dataclass
+    def __init__(self, bdd_saison):
+        """Initialize self à partir d'une entrée de BDD existante"""
+        # @dataclass => self.id, self.client_id, self.saison_id, self.mecontentement, self.fiche_path
+
+        self.client = tools.get(config.clients, id=self.client_id)
+        self.saison = tools.get(config.saisons, id=self.saison_id)
+
+    def __repr__(self):
+        """Returns repr(self)"""
+        return f"<Inscription #{self.id} ({self.client}/{self.saison})>"
+
+
 class Client():
     """Client achetant des places
 
-    Classe fille de la table 'clients' : les instances de cette classe doivent être des entrées en base.
-    Cela permet d'accéder directement aux attributs de la table : client.id, client.nom...
-
-    Les instances de cette classe se créent à partir de celles de la table : client = config.Client(bdd_client)
-    Il est impossible de créer une instance directement : créer d'abord l'instance de la table, i.e. client = config.Client(bdd.tables["clients"](...))
+    Classe de données liée à la table "clients" : toutes les colonnes de cette tables (self.bdd_cols) scont des attributs des instances de cette classe, qui contient l'objet SQLAlchemy associé dans self.bdd_item
     """
+    @dataclass
     def __init__(self, bdd_client):
         """Initialize self à partir d'une entrée de BDD existante"""
-
-        self.bdd_item = bdd_client
-        self.bdd_cols = list(bdd_client.__dict__.keys())        # Noms des colonnes de la table
-        for attr in self.bdd_cols:
-            setattr(self, attr, getattr(bdd_client, attr))
-            # ==> self.id, self.id_wp, self.nom, self.prenom, self.promo, self.autre, self.email
-            #     self.mecontentement, self.mecontentement_precedent, self.saison_actuelle_mec, self.a_payer
+        # @dataclass => self.id, self.id_wp, self.nom, self.prenom, self.promo, self.autre, self.email
+        #               self.mecontentement, self.mecontentement_precedent, self.saison_actuelle_mec, self.a_payer
 
         self.nomprenom = f"{self.nom.upper()} {self.prenom}"
 
@@ -182,22 +204,11 @@ class Client():
         """Renvoie la somme totale due par ce client à ce stade de l'attribution"""
         return sum(voeu.places_attribuees*voeu.spectacle.unit_price for voeu in self.attributions())
 
-    def liste_voeux(self):
-        """Renvoie la liste des voeux du client classée par prioritén lève une exception si les priorités sont illégales"""
-        voeux_ = self.voeux()
-        voeux_.sort(key=lambda a: a.priorite)
-
-        priorites = [voeu.priorite for voeu in voeux_]
-        Nvoeux = len(voeux_)
-
-        if priorites != list(range(1, Nvoeux + 1)):
-            raise RuntimeError(f"Priorité des voeux illégale pour {self.nomprenom} :\n{priorites}")
-
-        return voeux_
-
-    def voeu_n(self, prio):
-        """Renvoie le voeu de priorité <prio> du client, lève une exception si inexistant"""
-        return tools.get(self.voeux(), priorite=prio)
+    def verif_priorites(self):
+        """Affiche un avertissement si les priorités du client sont illégales (différentes de 1, 2, ..., N_voeux)"""
+        priorites = sorted(voeu.priorite for voeu in self.voeux())
+        if priorites != list(range(1, len(priorites) + 1)):
+            tk.messagebox.showwarning(title="Priorités illégales", message=f"Priorité des voeux illégale pour {self.nomprenom} :\n{priorites}")
 
     def init_mecontentement(self):
         """Initialise le mécontentement du client à partir des différentes sources liées au client et à ses voeux (exaucés et comblés)"""
@@ -235,21 +246,13 @@ class Client():
 class Voeu():
     """Voeu / attribution d'un client pour un spectacle
 
-    Classe fille de la table 'voeux' : les instances de cette classe doivent être des entrées en base.
-    Cela permet d'accéder directement aux attributs de la table : voeux.id, voeux.client_id...
-
-    Les instances de cette classe se créent à partir de celles de la table : voeu = config.Voeu(bdd_voeu)
-    Il est impossible de créer une instance directement : créer d'abord l'instance de la table, i.e. voeu = config.Voeu(bdd.tables["voeux"](...))
+    Classe de données liée à la table "voeux" : toutes les colonnes de cette tables (self.bdd_cols) sont des attributs des instances de cette classe, qui contient l'objet SQLAlchemy associé dans self.bdd_item
     """
+    @dataclass
     def __init__(self, bdd_voeu):
         """Initialize self à partir d'une entrée de BDD existante"""
-
-        self.bdd_item = bdd_voeu
-        self.bdd_cols = list(bdd_voeu.__dict__.keys())        # Noms des colonnes de la table
-        for attr in self.bdd_cols:
-            setattr(self, attr, getattr(bdd_voeu, attr))
-            # ==> self.id, self.client_id, self.spectacle_id, self.places_demandees,
-            #     self.priorite, self.places_minimum, self.statut, self.places_attribuees
+        # @dataclass => self.id, elf.client_id, self.spectacle_id, self.places_demandees,
+        #               self.priorite, self.places_minimum, self.statut, self.places_attribuees
 
         self.client = tools.get(clients, id=self.client_id)
         self.spectacle = tools.get(spectacles, id=self.spectacle_id)
@@ -269,27 +272,20 @@ class Voeu():
         elif self.places_attribuees and (not places):       # Attribution -> voeu
             self.client.mecontentement -= self.delta_mec()
 
+        self.client.a_payer = self.client.calcul_a_payer()
         self.places_attribuees = places
 
 
 class Spectacle():
     """Spectacle pour lequel des places sont proposées
 
-    Classe fille de la table 'spectacles' : les instances de cette classe doivent être des entrées en base.
-    Cela permet d'accéder directement aux attributs de la table : spectacles.id, spectacles.client_id...
-
-    Les instances de cette classe se créent à partir de celles de la table : spectacle = config.Spectacle(bdd_spectacle)
-    Il est impossible de créer une instance directement : créer d'abord l'instance de la table, i.e. spectacle = config.Spectacle(bdd.tables["spectacles"](...))
+    Classe de données liée à la table "spectacles" : toutes les colonnes de cette tables (self.bdd_cols) sont des attributs des instances de cette classe, qui contient l'objet SQLAlchemy associé dans self.bdd_item
     """
+    @dataclass
     def __init__(self, bdd_spectacle):
         """Initialize self à partir d'une entrée de BDD existante"""
-
-        self.bdd_item = bdd_spectacle
-        self.bdd_cols = list(bdd_spectacle.__dict__.keys())        # Noms des colonnes de la table
-        for attr in self.bdd_cols:
-            setattr(self, attr, getattr(bdd_spectacle, attr))
-            # ==> self.id, self.saison_id, self.nom, self.categorie, self.description, self.affiche_path,
-            #     self.salle_id, self.dateheure, self.nb_tickets, self.unit_price, self.score
+        # @dataclass => self.id, self.saison_id, self.nom, self.categorie, self.description, self.affiche_path,
+        #               self.salle_id, self.dateheure, self.nb_tickets, self.unit_price, self.score
 
         self.date = self.dateheure.strftime("%d/%m/%Y") if self.dateheure else "???"
         self.heure = self.dateheure.strftime("%H:%M") if self.dateheure else "???"
@@ -543,21 +539,42 @@ class ItemsTreeview(FilterableTreeview):
 class ContextPopup():
     """Context manager affichant une fenêtre Toplevel tout le long d'un processus long"""
 
-    def __init__(self, master, message, title=None):
+    def __init__(self, master, text, title=None, existing=None):
         """Initialize self."""
-        self.master = master
-        self.fenetre = Toplevel(master)
-        self.fenetre.title(title)
-        tk.Message(self.fenetre, text=message, padx=20, pady=20).pack()
+        if existing and isinstance(existing, ContextPopup):     # Mise à jour d'une popup déjà existante (et pas création d'une nouvelle)
+            self.existing = existing
+            self.existing.edit(text)
+        else:
+            self.existing = None
+            self.master = master
+            self.fenetre = Toplevel(master)
+            self.fenetre.title(title)
+            self.fenetre.protocol("WM_DELETE_WINDOW", lambda: None)          # Empêche de fermer la popup
+            self.message = tk.Message(self.fenetre, text=text, padx=20, pady=20)
+            self.message.pack()
 
     def __enter__(self):
         """Entrée dans le bloc with : affiche la fenêtre et le curseur"""
-        self.fenetre.configure(cursor="wait")
-        self.master.configure(cursor="wait")
-        self.fenetre.update()
-        return self
+        if self.existing:
+            return self.existing
+        else:
+            self.fenetre.configure(cursor="wait")
+            self.master.configure(cursor="wait")
+            self.fenetre.update()
+            return self
 
     def __exit__(self, exc_type, exc_value, exc_traceback):
         """Sortie du bloc with : supprime la fenêtre et rétablit le curseur"""
-        self.fenetre.destroy()
-        self.master.configure(cursor="")
+        if not self.existing:
+            self.fenetre.destroy()
+            self.master.configure(cursor="")
+
+    def edit(self, text):
+        """Modifie le texte de la popup"""
+        if self.existing:
+            self.existing.message.configure(text=text)
+            self.existing.fenetre.update()
+            self.existing.fenetre.lift()
+        else:
+            self.message.configure(text=text)
+            self.fenetre.lift()

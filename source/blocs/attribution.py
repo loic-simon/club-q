@@ -144,7 +144,7 @@ def attribution_sans_conflit():
     mess = ""
 
     for spec in config.spectacles:
-        if spec.nb_tickets > spec.nb_places_demandees():
+        if spec.nb_places_demandees() <= spec.nb_tickets:
             mess += f"- {spec.nom}\n"
 
             for voeu in spec.voeux():
@@ -225,8 +225,8 @@ def attribution_avec_conflit(prio):     # GÉNÉRATEUR : cette fonction retourne
         if mec and abs(voeu.client.mecontentement - mec) < 0.001:
             plages_voeux[-1].append(voeu)       # Ajout à la plage en cours
         else:
-            res.append([voeu])                  # Nouvelle plage
-            plages_voeux = voeu.client.mecontentement
+            plages_voeux.append([voeu])                  # Nouvelle plage
+            mec = voeu.client.mecontentement
 
 
     n_plages = len(plages_voeux)
@@ -269,17 +269,15 @@ def attribution_avec_conflit(prio):     # GÉNÉRATEUR : cette fonction retourne
             log(f"     {voeu.client.nomprenom} -> ")
 
             if voeu.places_demandees <= spec.nb_places_restantes():  # on lui attribue les places spec'il y en a assez
-                # client.spectaclesattribues.append(f"Voeu n°{prio} attribué: {spec} avec {voeu.nbplaces} places")
                 voeu.attribuer(voeu.places_demandees)
-                log(f"{voeu.places_demandees} places pour {spec.nom} (comblé)\n")
+                log(f"{voeu.places_demandees} place(s) pour {spec.nom} (comblé)\n")
 
-            elif voeu.places_minimum <= spec.nb_places_restantes():
-                # client.spectaclesattribues.append(f"Voeu n°{prio} partiellement attribué: {spec} avec {spec.nb_places_restantes} places")
+            elif voeu.places_minimum <= spec.nb_places_restantes() > 0:
+                log(f"{spec.nb_places_restantes()} place(s) pour {spec.nom} (sur {voeu.places_demandees})\n")
                 voeu.attribuer(spec.nb_places_restantes())
-                log(f"{spec.nb_places_restantes()} places pour {spec.nom} (sur {voeu.places_demandees})\n")
 
             else:
-                log(f"plus de places pour {spec.nb_places_restantes()}\n")
+                log(f"plus de places pour {spec.nom} (déçu)\n")
 
 
     # Fin de l'attribution
