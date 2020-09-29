@@ -6,7 +6,7 @@ from tkinter import ttk
 
 import hashlib
 
-from . import config, bdd, tools, fichier, attribution, exportation, publication, fiches, assistant
+from . import config, classes, bdd, tools, fichier, attribution, exportation, publication, fiches, assistant
 
 
 # Variables globales
@@ -201,12 +201,12 @@ def load(saison, reloading=False):
         # Récupération des participations de ces clients à cette saison
         participations_bdd = bdd.session.query(bdd.tables["participations"]).filter(bdd.tables["participations"].client_id.in_([client.id for client in clients_bdd])).filter_by(saison_id=config.saison.id).all()
 
-        # Passage aux objets enrichis (dans cet ordre, car config.Voeu() a besoin de config.clients et config.spectacles)
-        config.salles = [config.Salle(salle) for salle in salles_bdd]
-        config.spectacles = [config.Spectacle(spectacle) for spectacle in spectacles_bdd]
-        config.clients = [config.Client(client) for client in clients_bdd]
-        config.voeux = [config.Voeu(voeu) for voeu in voeux_bdd]
-        config.participations = [config.Participation(partic) for partic in participations_bdd]
+        # Passage aux objets enrichis (dans cet ordre, car classes.Voeu() a besoin de config.clients et config.spectacles)
+        config.salles = [classes.Salle(salle) for salle in salles_bdd]
+        config.spectacles = [classes.Spectacle(spectacle) for spectacle in spectacles_bdd]
+        config.clients = [classes.Client(client) for client in clients_bdd]
+        config.voeux = [classes.Voeu(voeu) for voeu in voeux_bdd]
+        config.participations = [classes.Participation(partic) for partic in participations_bdd]
 
         # Remplissage des treeviews
         config.liste_spectacles.insert(*config.spectacles)
@@ -228,7 +228,7 @@ def load(saison, reloading=False):
 def load_saisons_and_current():
     # Récupération des saisons, détection saison en cours
     bdd_saisons = bdd.session.query(bdd.tables["saisons"]).all()
-    config.saisons = [config.Saison(saison) for saison in bdd_saisons]
+    config.saisons = [classes.Saison(saison) for saison in bdd_saisons]
     config.saison = max(config.saisons, key=lambda s:s.debut)
 
 
