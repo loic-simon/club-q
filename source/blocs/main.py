@@ -1,10 +1,10 @@
 # Fenêtre d'attribution principale (frames vertes et jaunes)
 
+import sys
 import tkinter as tk
 import tkinter.messagebox, tkinter.simpledialog
 from tkinter import ttk
-
-import hashlib
+import importlib
 
 from . import config, bdd, tools, fichier, attribution, exportation, publication, fiches, assistant
 
@@ -94,31 +94,48 @@ def build_root():
 
     #------------------------- MENU FENÊTRE PRINCIPALE -------------------------
 
-    menubar = tk.Menu(config.root)
+    def build_menu():
+        global menubar
+        menubar = tk.Menu(config.root)
 
-    menu_fichier = tk.Menu(menubar, tearoff=False)
-    menu_fichier.add_command(label="Actualiser", command=config.refresh_listes)
-    menu_fichier.add_command(label="Reconnexion", command=fichier.reconnect)
-    menu_fichier.add_separator()
-    menu_fichier.add_command(label="Sauvegarder les données", command=fichier.upload_all)
-    menu_fichier.add_separator()
-    menu_fichier.add_command(label="Paramètres", command=fichier.parametres)
-    menu_fichier.add_command(label="Quitter", command=config.root.quit)
-    menubar.add_cascade(label="Fichier", menu=menu_fichier)
+        menu_fichier = tk.Menu(menubar, tearoff=False)
+        menu_fichier.add_command(label="Actualiser", command=config.refresh_listes)
+        menu_fichier.add_command(label="Reconnexion", command=fichier.reconnect)
+        menu_fichier.add_separator()
+        menu_fichier.add_command(label="Sauvegarder les données", command=fichier.upload_all)
+        menu_fichier.add_separator()
+        menu_fichier.add_command(label="Paramètres", command=fichier.parametres)
+        menu_fichier.add_command(label="Quitter", command=config.root.quit)
+        menubar.add_cascade(label="Fichier", menu=menu_fichier)
 
-    menubar.add_command(label="Suivi de l'attribution", command=attribution.suivi_process)
+        menubar.add_command(label="Suivi de l'attribution", command=attribution.suivi_process)
 
-    menu_exporter = tk.Menu(menubar, tearoff=False)
-    menu_exporter.add_command(label="Exporter les fiches spectacles", command=exportation.exporter_fiches_spectacles)
-    menu_exporter.add_command(label="Exporter les fiches élèves", command=exportation.exporter_fiches_eleves)
-    menubar.add_cascade(label="Exporter", menu=menu_exporter)
+        menu_exporter = tk.Menu(menubar, tearoff=False)
+        menu_exporter.add_command(label="Exporter les fiches spectacles", command=exportation.exporter_fiches_spectacles)
+        menu_exporter.add_command(label="Exporter les fiches élèves", command=exportation.exporter_fiches_eleves)
+        menu_exporter.add_command(label="Exporter l'Excel récapitulatif", command=exportation.exporter_excel_prix)
+        menubar.add_cascade(label="Exporter", menu=menu_exporter)
 
-    menu_publier = tk.Menu(menubar, tearoff=False)
-    menu_publier.add_command(label="Les fiches élèves sur le serveur", command=publication.publier_fiches_serveur)
-    menu_publier.add_command(label="(puis) Envoyer les fiches par mail", command=publication.envoi_fiches_mail)
-    menubar.add_cascade(label="Publier", menu=menu_publier)
+        menu_publier = tk.Menu(menubar, tearoff=False)
+        menu_publier.add_command(label="Les fiches élèves sur le serveur", command=publication.publier_fiches_serveur)
+        menu_publier.add_command(label="(puis) Envoyer les fiches par mail", command=publication.envoi_fiches_mail)
+        menubar.add_cascade(label="Publier", menu=menu_publier)
 
-    config.root.configure(menu=menubar)
+        if config.DEBUG:
+            def reload():       # Menu spécial pour recharger facilement une partie du programme
+                modname = tk.simpledialog.askstring("Reload module", "Quel module ? (blocs. optionnel)", initialvalue=getattr(config, "_RELOAD", ""))
+                try:
+                    mod = sys.modules[modname]
+                except KeyError:
+                    mod = sys.modules[f"blocs.{modname}"]
+                config._RELOAD = modname
+                importlib.reload(mod)
+                build_menu()
+            menubar.add_command(label="[DEV] Reload module", command=reload)
+
+        config.root.configure(menu=menubar)
+
+    build_menu()
     config.root.update()
 
 

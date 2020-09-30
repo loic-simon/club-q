@@ -18,6 +18,7 @@ Python program implementing a graphical interface for allocating show tickets to
 * Génération des fiches récapitulatives PDF des élèves et spectacles
 * [v2.1] Publication des fiches élèves individuelles sur le serveur d'inscription
 * [v2.1] Envoi des fiches élèves individuelles par mail
+* [v2.2] Génération d'un fichier Excel récapitulant les sommes à payer
 
 ## Installation
 
@@ -38,7 +39,7 @@ Le point d'entrée du programme est alors [`source/club-q.py`](source/club-q.py)
 #### Dépendances
 
 * Python 3.6+
-* Packages : SQLAlchemy, PyMySQL, ReportLab, cryptography, Unidecode, Pillow, natsort (voir [`requirements.txt`](requirements.txt))
+* Packages : SQLAlchemy, PyMySQL, ReportLab, cryptography, Unidecode, Pillow, natsort, openpyxl (voir [`requirements.txt`](requirements.txt))
 
 Pour installer tous les packages nécessaires, avec [pip](https://pip.pypa.io/en/stable/) (gestionnaire de packages usuel) :
 
@@ -64,7 +65,7 @@ Le programme dispose d'une seule option pour un usage en ligne de commande, `--d
 
 ### Mot de passe
 
-Le hash du mot de passe du programme et les paramètres sensibles chiffrées peut être redéfinis à l'aide du script [`source/gen_new_pass.py`](source/gen_new_pass.py).
+Le hash du mot de passe du programme et les paramètres sensibles chiffrées peuvent être redéfinis à l'aide du script [`source/gen_new_pass.py`](source/gen_new_pass.py).
 
 
 ## Contributions

@@ -99,7 +99,7 @@ def refresh_listes():
         liste_clients.refresh()
         liste_spectacles.refresh()
         liste_suvi_process.refresh()
-    except NameError:
+    except Exception:
         pass
 
 
@@ -126,7 +126,7 @@ class Saison():
     @dataclass
     def __init__(self, bdd_saison):
         """Initialize self à partir d'une entrée de BDD existante"""
-        # @dataclass => self.id, self.nom, self.promo_orga, self.debut, self.fin
+        # @dataclass => self.id, self.nom, self.promo_orga, self.debut, self.fin, self.debut_inscription, self.fin_inscription
 
     def __repr__(self):
         """Returns repr(self)"""
@@ -178,7 +178,7 @@ class Client():
         # @dataclass => self.id, self.id_wp, self.nom, self.prenom, self.promo, self.autre, self.email
         #               self.mecontentement, self.mecontentement_precedent, self.saison_actuelle_mec, self.a_payer
 
-        self.nomprenom = f"{self.nom.upper()} {self.prenom}"
+        self.nomprenom = f"{self.nom.upper()} {self.prenom.title()}"
 
     def __repr__(self):
         """Returns repr(self)"""
