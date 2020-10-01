@@ -1,20 +1,24 @@
-from . import config, bdd
+import tkinter as tk
+from tkinter import ttk
+
+from . import config, tools
 
 #----------------------------- CLASSES DE DONNÉES ------------------------------
 
 
-class DataClass(type):
-    """Métaclasse des classes de données
+class DataClass():
+    """Classe de base des classes de données
 
-    Toutes les classes construites sur cette métaclasse viennent interfacer une table SQLAlchemy, dont le nom (clé de bdd.tables) doit être précisée à la construction :
-        def MaClasse(metaclass=DataClass, tablename=ma_table):
+    Toutes les classes héritant de cette classe viennent interfacer une table SQLAlchemy, dont le nom (clé de bdd.tables) doit être précisée à la construction :
+        def MaClasse(DataClass, tablename=ma_table):
             ...
 
     Si déclarée, leur méthode __init__ doit attendre un unique argument optionnel représentant un objet de cette table :
             def __init__(self, bdd_item=None):
+                super().__init__(bdd_item)
                 ...
 
-    Cette métaclasse transforme (ou crée) leur méthode __init__ de telle sorte que MaClasse puisse être utilisée
+    DataClass.__init__ permet à MaClasse d'être utilisée
         - soit pour représenter une entrée existante de la table de données :
             MaClasse(item) -> objet MaClasse reprenant les propriétés de item
 
@@ -23,114 +27,107 @@ class DataClass(type):
 
     Si [bdd_item] est fourni, tous les arguments nommés sont ignorés.
     Dans tous les cas, les instances de MaClasse possèdent les attributs
-        item.bdd_table          objet SQLAlchemy fourni à la déclaration de la classe ;
+        item.table              objet SQLAlchemy fourni à la déclaration de la classe ;
         item.bdd_item           objet SQLAlchemy fourni ou créé à l'instanciation ;
         item.bdd_cols           liste des noms des colonnes de <table> ;
         item.<col>              pour chacune des colonnes de <table> (valeurs de item.bdd_cols).
     """
-    @staticmethod
-    def transform_init(initfunc, tablename):     # Définie à l'import, appelée à chaque création de classe
-        """Décorateur transformant / créant les méthodes __init__ des classes de données"""
-        def __init__(item, bdd_item=None, **kwargs):       # Définie à la création de classe, appellée à chque création d'instance
-            table = bdd.tables.get(tablename)
-            assert table, f"Table \"{tablename}\" introuvable"
-            item.bdd_table = table
-            item.bdd_cols = [col.key for col in table.__table__.columns]           # Noms des colonnes de la table
+    subclasses = []         # Liste des classes héritant de DataClass
 
-            if bdd_item:        # Création à partir d'un objet existant
-                if not isinstance(bdd_item, table):
-                    raise TypeError(f"Tentative de création un objet {type(item)} à partir d'un objet {type(bdd_item)}")
-                item.bdd_item = bdd_item
+    def __init__(self, bdd_item=None, session=None, **kwargs):
+        if type(self) is DataClass:
+            raise TypeError("DataClass n'est pas directement utilisable. Utiliser des classes dérivées.")
+        if not self.table:
+            raise RuntimeError(f"Table \"{self.tablename}\" pas encore armée")
 
-            else:
-                item.bdd_item = table(**kwargs)     # Création d'un nouvel objet BDD : si les kwargs ne sont pas bons, lève une erreur
-                bdd.session.add(item.bdd_item)
-                bdd.session.flush()         # Envoi de l'objet à la BDD, remplissage ID / valeurs par défaut
+        if bdd_item:        # Création à partir d'un objet existant
+            if not isinstance(bdd_item, self.table):
+                raise TypeError(f"Tentative de création un objet {type(self)} à partir d'un objet {type(bdd_item)}")
+            self.bdd_item = bdd_item
 
-            for col in item.bdd_cols:       # Passage des attributs
-                setattr(item, col, getattr(bdd_item, col))
+        elif session:
+            self.bdd_item = self.table(**kwargs)     # Création d'un nouvel objet BDD : si les kwargs ne sont pas bons, lève une erreur
+            session.add(self.bdd_item)
+            session.flush()         # Envoi de l'objet à la BDD, remplissage ID / valeurs par défaut
 
-            if initfunc:        # __init__ déclaré dans la définition de la classe :
-                initfunc(item, bdd_item)        # Reste de l'initialisation
+        else:
+            raise TypeError("bdd_item ou session doit être spécifié pour les dataclasses")
 
-        return __init__
+        for col in self.bdd_cols:       # Passage des attributs
+            setattr(self, col, getattr(bdd_item, col))
 
-    def __new__(metacls, name, bases, namespace, tablename):
-        """Méthode créant la classe"""
-        namespace["__init__"] = metacls.transform_init(namespace.get("__init__"), tablename=tablename)        # Modification / création de cls.__init__
-        super().__new__(metacls, name, bases, namespace)
-
-    def __init__(cls, name, bases, namespace, **kwargs):
-        """Méthode initialisant la nouvelle classe"""
-        super().__init__(name, bases, namespace)
+    def __repr__(self):
+        """Returns repr(self)"""
+        return f"""<{type(self).__name__} #{getattr(self, self.primary_col, None)}>"""
 
 
+    def __init_subclass__(cls, tablename, **kwargs):
+        """Méthode initialisant les classes héritant de celle-ci"""
+        cls.subclasses.append(cls)      # Enregistrement de la classe
 
-class Saison(metaclass=DataClass, tablename="saisons"):
+        cls.tablename = tablename
+        cls.table = None        # On ne peut pas accéder à la table dès l'initialisation (pas encore connecté) : on le fera plus tard
+
+        super().__init_subclass__(**kwargs)
+
+    @classmethod
+    def arm_dataclass(cls, tables):
+        """Définit cls.table et ses dérivés à partir des tables SQLAlchemy"""
+        cls.table = tables[cls.tablename]
+        cls.raw_cols = cls.table.__table__.columns
+        cls.primary_col = next(col.key for col in cls.raw_cols if col.primary_key)
+        cls.bdd_cols = [col.key for col in cls.raw_cols]           # Noms des colonnes de la table
+
+
+    def query(self, session):
+        return session.query(self.table)
+
+
+
+class Saison(DataClass, tablename="saisons"):
     """Saison Qlturelle
 
     Classe de données liée à la table "saisons" : toutes les colonnes de cette tables (self.bdd_cols) sont des attributs des instances de cette classe, qui contient l'objet SQLAlchemy associé dans self.bdd_item
     """
-    # @dataclass
-    # def __init__(self, bdd_saison):
-    #     """Initialize self à partir d'une entrée de BDD existante"""
-        # @dataclass => self.id, self.nom, self.promo_orga, self.debut, self.fin
-
-    def __repr__(self):
-        """Returns repr(self)"""
-        return f"<Saison #{self.id} ({self.nom})>"
+    pass    # DataClass => self.id, self.nom, self.promo_orga, self.debut, self.fin
 
 
-class Salle(metaclass=DataClass, tablename="salles"):
+class Salle(DataClass, tablename="salles"):
     """Salle de spectacles
 
     Classe de données liée à la table "salles" : toutes les colonnes de cette tables (self.bdd_cols) sont des attributs des instances de cette classe, qui contient l'objet SQLAlchemy associé dans self.bdd_item
     """
-    # @dataclass
-    # def __init__(self, bdd_salle):
-    #     """Initialize self à partir d'une entrée de BDD existante"""
-    #     # @dataclass => self.id, self.nom, self.description, self.image_path,
-    #     #               self.url, self.adresse, self.latitude, self.longitude
-
-    def __repr__(self):
-        """Returns repr(self)"""
-        return f"<Salle #{self.id} ({self.nom})>"
+    pass    # DataClass => self.id, self.nom, self.description, self.image_path,
+            #              self.url, self.adresse, self.latitude, self.longitude
 
 
-class Participation(metaclass=DataClass, tablename="participations"):
+class Participation(DataClass, tablename="participations"):
     """Participation d'un client à une saison
 
     Classe de données liée à la table "participations" : toutes les colonnes de cette tables (self.bdd_cols) sont des attributs des instances de cette classe, qui contient l'objet SQLAlchemy associé dans self.bdd_item
     """
-    # @dataclass
     def __init__(self, bdd_participation):
         """Initialize self à partir d'une entrée de BDD existante"""
-        # @dataclass => self.id, self.client_id, self.saison_id, self.mecontentement, self.fiche_path
+        super().__init__(bdd_participation)
+        # DataClass => self.id, self.client_id, self.saison_id, self.mecontentement, self.fiche_path
 
         self.client = tools.get(config.clients, id=self.client_id)
         self.saison = tools.get(config.saisons, id=self.saison_id)
 
-    def __repr__(self):
-        """Returns repr(self)"""
-        return f"<Inscription #{self.id} ({self.client}/{self.saison})>"
 
-
-class Client(metaclass=DataClass, tablename="clients"):
+class Client(DataClass, tablename="clients"):
     """Client achetant des places
 
     Classe de données liée à la table "clients" : toutes les colonnes de cette tables (self.bdd_cols) scont des attributs des instances de cette classe, qui contient l'objet SQLAlchemy associé dans self.bdd_item
     """
-    # @dataclass
     def __init__(self, bdd_client):
         """Initialize self à partir d'une entrée de BDD existante"""
-        # @dataclass => self.id, self.id_wp, self.nom, self.prenom, self.promo, self.autre, self.email
-        #               self.mecontentement, self.mecontentement_precedent, self.saison_actuelle_mec, self.a_payer
-
+        super().__init__(bdd_client)
+        # DataClass => self.id, self.id_wp, self.nom, self.prenom, self.promo, self.autre, self.email
+        #              self.mecontentement, self.mecontentement_precedent, self.saison_actuelle_mec, self.a_payer
         self.nomprenom = f"{self.nom.upper()} {self.prenom}"
-
-    def __repr__(self):
-        """Returns repr(self)"""
-        return f"<Client #{self.id} ({self.nomprenom})>"
+        if self.mecontentement is None:
+            self.mecontentement = 0
 
     def voeux(self):
         """Renvoie la liste des voeux émis par ce client"""
@@ -191,59 +188,51 @@ class Client(metaclass=DataClass, tablename="clients"):
             self.mecontentement += voeu.delta_mec()
 
 
-class Voeu(metaclass=DataClass, tablename="voeux"):
+class Voeu(DataClass, tablename="voeux"):
     """Voeu / attribution d'un client pour un spectacle
 
     Classe de données liée à la table "voeux" : toutes les colonnes de cette tables (self.bdd_cols) sont des attributs des instances de cette classe, qui contient l'objet SQLAlchemy associé dans self.bdd_item
     """
-    # @dataclass
     def __init__(self, bdd_voeu):
         """Initialize self à partir d'une entrée de BDD existante"""
-        # @dataclass => self.id, elf.client_id, self.spectacle_id, self.places_demandees,
-        #               self.priorite, self.places_minimum, self.statut, self.places_attribuees
+        super().__init__(bdd_voeu)
+        # DataClass => self.id, self.client_id, self.spectacle_id, self.places_demandees,
+        #              self.priorite, self.places_minimum, self.statut, self.places_attribuees
 
         self.client = tools.get(config.clients, id=self.client_id)
         self.spectacle = tools.get(config.spectacles, id=self.spectacle_id)
-
-    def __repr__(self):
-        """Returns repr(self)"""
-        return f"<Voeu #{self.id} ({self.client}/{self.spectacle})>"
 
     def delta_mec(self):
         """Mécontentement ajouté lors de l'attribution du voeu"""
         return -0.5**self.priorite
 
     def attribuer(self, places):
-        """Définit le nombre de places attribuées du voeu à <places> et modifie le mécontentement du client en conséquence"""
+        """Définit le nombre de places attribuées du voeu à <places> et modifie le mécontentement et la somme à payer du client en conséquence"""
         if (not self.places_attribuees) and places:         # Voeu -> attribution
             self.client.mecontentement += self.delta_mec()
         elif self.places_attribuees and (not places):       # Attribution -> voeu
             self.client.mecontentement -= self.delta_mec()
 
-        self.client.a_payer = self.client.calcul_a_payer()
         self.places_attribuees = places
+        self.client.a_payer = self.client.calcul_a_payer()
 
 
-class Spectacle(metaclass=DataClass, tablename="spectacles"):
+class Spectacle(DataClass, tablename="spectacles"):
     """Spectacle pour lequel des places sont proposées
 
     Classe de données liée à la table "spectacles" : toutes les colonnes de cette tables (self.bdd_cols) sont des attributs des instances de cette classe, qui contient l'objet SQLAlchemy associé dans self.bdd_item
     """
-    # @dataclass
     def __init__(self, bdd_spectacle):
         """Initialize self à partir d'une entrée de BDD existante"""
-        # @dataclass => self.id, self.saison_id, self.nom, self.categorie, self.description, self.affiche_path,
-        #               self.salle_id, self.dateheure, self.nb_tickets, self.unit_price, self.score
+        super().__init__(bdd_spectacle)
+        # DataClass => self.id, self.saison_id, self.nom, self.categorie, self.description, self.affiche_path,
+        #              self.salle_id, self.dateheure, self.nb_tickets, self.unit_price, self.score
 
         self.date = self.dateheure.strftime("%d/%m/%Y") if self.dateheure else "???"
         self.heure = self.dateheure.strftime("%H:%M") if self.dateheure else "???"
 
         self.saison = tools.get(config.saisons, id=self.saison_id)
         self.salle = tools.get(config.salles, id=self.salle_id)
-
-    def __repr__(self):
-        """Returns repr(self)"""
-        return f"<Spectacle #{self.id} ({self.nom})>"
 
     def lieu(self):
         """Renvoie le nom de la salle de ce spectacle"""
