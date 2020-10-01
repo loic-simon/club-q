@@ -11,7 +11,7 @@ from PIL import Image, ImageTk
 from blocs import config, bdd, main, assistant
 
 
-version = "2.1.0"
+version = "2.2.2"
 
 welcome_text = """Bienvenue dans le programme d'attribution des places du Club Q !
 
@@ -63,11 +63,8 @@ def report_exc(exc, val, tb):
     """Affiche un pop-up (et rollback BDD si nécessaire) en cas d'erreur"""
     sys.stderr.write(f"--- {datetime.datetime.now()} Exception :\n{traceback.format_exc()}")    # log système
 
-    widget = config.root.focus_get()        # Widget actuellement focus
-    if widget:
-        fenetre = widget.winfo_toplevel()       # Fenêtre de ce widget : permet d'afficher l'erreur sans remonter root au-dessus
-    else:
-        fenetre = None
+    widget = config.root.focus_get()                        # Widget actuellement focus
+    fenetre = widget.winfo_toplevel() if widget else None   # Fenêtre de ce widget : permet d'afficher l'erreur sans remonter root au-dessus
 
     if issubclass(exc, bdd.SQLAlchemyError):
         bdd.session.rollback()          # Si erreur BDD, toujours rollback dans le doute
@@ -116,15 +113,19 @@ try:
 
     #---------------------------- BOUCLE PRINCIPALE ----------------------------
 
-    if config.DEBUG:
-        print("Entrée dans la mainloop")
-
     with tempfile.TemporaryDirectory() as config.tempdir:   # Dossier temporaire, effacé à la fermeture du programme
         if config.DEBUG:
             print(f"Dossier temporaire créé : {config.tempdir}")
+            print("Entrée dans la mainloop")
 
         config.root.mainloop()
 
+        if config.DEBUG:
+            print(f"Sortie de la mainloop")
+
+    if config.DEBUG:
+        print(f"Dossier temporaire détruit")
+        print(f"Exit")
 
 except Exception as exc:        # Exception pendant l'initialisation (avant le mainloop)
     report_exc(type(exc), exc, exc.__traceback__)

@@ -99,10 +99,11 @@ def refresh_listes():
         liste_clients.refresh()
         liste_spectacles.refresh()
         liste_suvi_process.refresh()
-    except NameError:
+    except Exception:
         pass
 
 
+      
 #---------------------------- SOUS-CLASSES TKINTER -----------------------------
 
 class Toplevel(tk.Toplevel):
