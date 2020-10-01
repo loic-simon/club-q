@@ -6,8 +6,8 @@ from . import config, bdd
 class DataClass(type):
     """Métaclasse des classes de données
 
-    Toutes les classes construites sur cette métaclasse viennent interfacer une table SQLAlchemy, qui doit être précisée à la construction :
-        def MaClasse(metaclass=DataClass, table=ma_table):
+    Toutes les classes construites sur cette métaclasse viennent interfacer une table SQLAlchemy, dont le nom (clé de bdd.tables) doit être précisée à la construction :
+        def MaClasse(metaclass=DataClass, tablename=ma_table):
             ...
 
     Si déclarée, leur méthode __init__ doit attendre un unique argument optionnel représentant un objet de cette table :
@@ -28,37 +28,37 @@ class DataClass(type):
         item.bdd_cols           liste des noms des colonnes de <table> ;
         item.<col>              pour chacune des colonnes de <table> (valeurs de item.bdd_cols).
     """
-    # @staticmethod
-    # def transform_init(initfunc, tablename):     # Définie à l'import, appelée à chaque création de classe
-    #     """Décorateur transformant / créant les méthodes __init__ des classes de données"""
-    #     def __init__(item, bdd_item=None, **kwargs):       # Définie à la création de classe, appellée à chque création d'instance
-    #         table = bdd.tables.get(tablename)
-    #         if not table:
-    #             raise RuntimeError(f"Table \"{tablename}\" introuvable")
-    #         item.bdd_table = table
-    #         item.bdd_cols = [col.key for col in table.__table__.columns]           # Noms des colonnes de la table
-    #
-    #         if bdd_item:        # Création à partir d'un objet existant
-    #             if not isinstance(bdd_item, table):
-    #                 raise TypeError(f"Tentative de création un objet {type(item)} à partir d'un objet {type(bdd_item)}")
-    #             item.bdd_item = bdd_item
-    #
-    #         else:
-    #             item.bdd_item = table(**kwargs)     # Création d'un nouvel objet BDD : si les kwargs ne sont pas bons, lève une erreur
-    #             bdd.session.add(item.bdd_item)
-    #             bdd.session.flush()         # Envoi de l'objet à la BDD, remplissage ID / valeurs par défaut
-    #
-    #         for col in item.bdd_cols:       # Passage des attributs
-    #             setattr(item, col, getattr(bdd_item, col))
-    #
-    #         if initfunc:        # __init__ déclaré dans la définition de la classe :
-    #             initfunc(item, bdd_item)        # Reste de l'initialisation
-    #
-    #     return __init__
-    def __new___(metacls, name, bases, namespace, tablename):
+    @staticmethod
+    def transform_init(initfunc, tablename):     # Définie à l'import, appelée à chaque création de classe
+        """Décorateur transformant / créant les méthodes __init__ des classes de données"""
+        def __init__(item, bdd_item=None, **kwargs):       # Définie à la création de classe, appellée à chque création d'instance
+            table = bdd.tables.get(tablename)
+            assert table, f"Table \"{tablename}\" introuvable"
+            item.bdd_table = table
+            item.bdd_cols = [col.key for col in table.__table__.columns]           # Noms des colonnes de la table
+
+            if bdd_item:        # Création à partir d'un objet existant
+                if not isinstance(bdd_item, table):
+                    raise TypeError(f"Tentative de création un objet {type(item)} à partir d'un objet {type(bdd_item)}")
+                item.bdd_item = bdd_item
+
+            else:
+                item.bdd_item = table(**kwargs)     # Création d'un nouvel objet BDD : si les kwargs ne sont pas bons, lève une erreur
+                bdd.session.add(item.bdd_item)
+                bdd.session.flush()         # Envoi de l'objet à la BDD, remplissage ID / valeurs par défaut
+
+            for col in item.bdd_cols:       # Passage des attributs
+                setattr(item, col, getattr(bdd_item, col))
+
+            if initfunc:        # __init__ déclaré dans la définition de la classe :
+                initfunc(item, bdd_item)        # Reste de l'initialisation
+
+        return __init__
+
+    def __new__(metacls, name, bases, namespace, tablename):
         """Méthode créant la classe"""
-        # namespace["__init__"] = transform_init(namespace.get("__init__"), tablename=table)        # Modification / création de cls.__init__
-        super().__new___(metacls, name, bases, namespace)
+        namespace["__init__"] = metacls.transform_init(namespace.get("__init__"), tablename=tablename)        # Modification / création de cls.__init__
+        super().__new__(metacls, name, bases, namespace)
 
     def __init__(cls, name, bases, namespace, **kwargs):
         """Méthode initialisant la nouvelle classe"""
@@ -81,29 +81,29 @@ class Saison(metaclass=DataClass, tablename="saisons"):
         return f"<Saison #{self.id} ({self.nom})>"
 
 
-class Salle():
+class Salle(metaclass=DataClass, tablename="salles"):
     """Salle de spectacles
 
     Classe de données liée à la table "salles" : toutes les colonnes de cette tables (self.bdd_cols) sont des attributs des instances de cette classe, qui contient l'objet SQLAlchemy associé dans self.bdd_item
     """
-    @dataclass
-    def __init__(self, bdd_salle):
-        """Initialize self à partir d'une entrée de BDD existante"""
-        # @dataclass => self.id, self.nom, self.description, self.image_path,
-        #               self.url, self.adresse, self.latitude, self.longitude
+    # @dataclass
+    # def __init__(self, bdd_salle):
+    #     """Initialize self à partir d'une entrée de BDD existante"""
+    #     # @dataclass => self.id, self.nom, self.description, self.image_path,
+    #     #               self.url, self.adresse, self.latitude, self.longitude
 
     def __repr__(self):
         """Returns repr(self)"""
         return f"<Salle #{self.id} ({self.nom})>"
 
 
-class Participation():
+class Participation(metaclass=DataClass, tablename="participations"):
     """Participation d'un client à une saison
 
     Classe de données liée à la table "participations" : toutes les colonnes de cette tables (self.bdd_cols) sont des attributs des instances de cette classe, qui contient l'objet SQLAlchemy associé dans self.bdd_item
     """
-    @dataclass
-    def __init__(self, bdd_saison):
+    # @dataclass
+    def __init__(self, bdd_participation):
         """Initialize self à partir d'une entrée de BDD existante"""
         # @dataclass => self.id, self.client_id, self.saison_id, self.mecontentement, self.fiche_path
 
@@ -115,12 +115,12 @@ class Participation():
         return f"<Inscription #{self.id} ({self.client}/{self.saison})>"
 
 
-class Client():
+class Client(metaclass=DataClass, tablename="clients"):
     """Client achetant des places
 
     Classe de données liée à la table "clients" : toutes les colonnes de cette tables (self.bdd_cols) scont des attributs des instances de cette classe, qui contient l'objet SQLAlchemy associé dans self.bdd_item
     """
-    @dataclass
+    # @dataclass
     def __init__(self, bdd_client):
         """Initialize self à partir d'une entrée de BDD existante"""
         # @dataclass => self.id, self.id_wp, self.nom, self.prenom, self.promo, self.autre, self.email
@@ -191,12 +191,12 @@ class Client():
             self.mecontentement += voeu.delta_mec()
 
 
-class Voeu():
+class Voeu(metaclass=DataClass, tablename="voeux"):
     """Voeu / attribution d'un client pour un spectacle
 
     Classe de données liée à la table "voeux" : toutes les colonnes de cette tables (self.bdd_cols) sont des attributs des instances de cette classe, qui contient l'objet SQLAlchemy associé dans self.bdd_item
     """
-    @dataclass
+    # @dataclass
     def __init__(self, bdd_voeu):
         """Initialize self à partir d'une entrée de BDD existante"""
         # @dataclass => self.id, elf.client_id, self.spectacle_id, self.places_demandees,
@@ -224,12 +224,12 @@ class Voeu():
         self.places_attribuees = places
 
 
-class Spectacle():
+class Spectacle(metaclass=DataClass, tablename="spectacles"):
     """Spectacle pour lequel des places sont proposées
 
     Classe de données liée à la table "spectacles" : toutes les colonnes de cette tables (self.bdd_cols) sont des attributs des instances de cette classe, qui contient l'objet SQLAlchemy associé dans self.bdd_item
     """
-    @dataclass
+    # @dataclass
     def __init__(self, bdd_spectacle):
         """Initialize self à partir d'une entrée de BDD existante"""
         # @dataclass => self.id, self.saison_id, self.nom, self.categorie, self.description, self.affiche_path,

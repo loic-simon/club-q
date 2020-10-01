@@ -64,7 +64,10 @@ def report_exc(exc, val, tb):
     sys.stderr.write(f"--- {datetime.datetime.now()} Exception :\n{traceback.format_exc()}")    # log système
 
     widget = config.root.focus_get()        # Widget actuellement focus
-    fenetre = widget.winfo_toplevel()       # Fenêtre de ce widget : permet d'afficher l'erreur sans remonter root au-dessus
+    if widget:
+        fenetre = widget.winfo_toplevel()       # Fenêtre de ce widget : permet d'afficher l'erreur sans remonter root au-dessus
+    else:
+        fenetre = None
 
     if issubclass(exc, bdd.SQLAlchemyError):
         bdd.session.rollback()          # Si erreur BDD, toujours rollback dans le doute
@@ -118,7 +121,7 @@ try:
 
     with tempfile.TemporaryDirectory() as config.tempdir:   # Dossier temporaire, effacé à la fermeture du programme
         if config.DEBUG:
-            print(f"Dossier temporaire créé : {tempdir}")
+            print(f"Dossier temporaire créé : {config.tempdir}")
 
         config.root.mainloop()
 
