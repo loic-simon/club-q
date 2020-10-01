@@ -54,7 +54,7 @@ class DataClass():
             raise TypeError("bdd_item ou session doit être spécifié pour les dataclasses")
 
         for col in self.bdd_cols:       # Passage des attributs
-            setattr(self, col, getattr(bdd_item, col))
+            setattr(self, col, getattr(self.bdd_item, col))
 
     def __repr__(self):
         """Returns repr(self)"""
@@ -106,9 +106,9 @@ class Participation(DataClass, tablename="participations"):
 
     Classe de données liée à la table "participations" : toutes les colonnes de cette tables (self.bdd_cols) sont des attributs des instances de cette classe, qui contient l'objet SQLAlchemy associé dans self.bdd_item
     """
-    def __init__(self, bdd_participation):
+    def __init__(self, bdd_participation=None, **kwargs):
         """Initialize self à partir d'une entrée de BDD existante"""
-        super().__init__(bdd_participation)
+        super().__init__(bdd_participation, **kwargs)
         # DataClass => self.id, self.client_id, self.saison_id, self.mecontentement, self.fiche_path
 
         self.client = tools.get(config.clients, id=self.client_id)
@@ -120,9 +120,9 @@ class Client(DataClass, tablename="clients"):
 
     Classe de données liée à la table "clients" : toutes les colonnes de cette tables (self.bdd_cols) scont des attributs des instances de cette classe, qui contient l'objet SQLAlchemy associé dans self.bdd_item
     """
-    def __init__(self, bdd_client):
+    def __init__(self, bdd_client=None, **kwargs):
         """Initialize self à partir d'une entrée de BDD existante"""
-        super().__init__(bdd_client)
+        super().__init__(bdd_client, **kwargs)
         # DataClass => self.id, self.id_wp, self.nom, self.prenom, self.promo, self.autre, self.email
         #              self.mecontentement, self.mecontentement_precedent, self.saison_actuelle_mec, self.a_payer
         self.nomprenom = f"{self.nom.upper()} {self.prenom}"
@@ -193,9 +193,9 @@ class Voeu(DataClass, tablename="voeux"):
 
     Classe de données liée à la table "voeux" : toutes les colonnes de cette tables (self.bdd_cols) sont des attributs des instances de cette classe, qui contient l'objet SQLAlchemy associé dans self.bdd_item
     """
-    def __init__(self, bdd_voeu):
+    def __init__(self, bdd_voeu=None, **kwargs):
         """Initialize self à partir d'une entrée de BDD existante"""
-        super().__init__(bdd_voeu)
+        super().__init__(bdd_voeu, **kwargs)
         # DataClass => self.id, self.client_id, self.spectacle_id, self.places_demandees,
         #              self.priorite, self.places_minimum, self.statut, self.places_attribuees
 
@@ -222,9 +222,9 @@ class Spectacle(DataClass, tablename="spectacles"):
 
     Classe de données liée à la table "spectacles" : toutes les colonnes de cette tables (self.bdd_cols) sont des attributs des instances de cette classe, qui contient l'objet SQLAlchemy associé dans self.bdd_item
     """
-    def __init__(self, bdd_spectacle):
+    def __init__(self, bdd_spectacle=None, **kwargs):
         """Initialize self à partir d'une entrée de BDD existante"""
-        super().__init__(bdd_spectacle)
+        super().__init__(bdd_spectacle, **kwargs)
         # DataClass => self.id, self.saison_id, self.nom, self.categorie, self.description, self.affiche_path,
         #              self.salle_id, self.dateheure, self.nb_tickets, self.unit_price, self.score
 

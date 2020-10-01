@@ -75,6 +75,7 @@ def build_root():
         stretches=[True, False, False, False, False],
         filter_column="Nom",
         height=7, selectmode="browse",
+        # footer_id=-1, footer_values=["[Ajouter un élève]", "", "", "", ""],
     )
     config.liste_clients.grid(row=1, column=0, sticky=tk.NSEW, padx=(10, 0), pady=(0, 10))
     config.liste_clients.bind("<Double-Button-1>", fiches.fiche_client)
@@ -214,7 +215,6 @@ def load(saison, reloading=False):
 
         # Récupération des spectacles de la saison
         spectacles_bdd = bdd.session.query(bdd.tables["spectacles"]).filter_by(saison_id=saison.id).all()
-        print(spectacles_bdd)
         # Récupération des voeux & attributions pour ces spectacles
         voeux_bdd = bdd.session.query(bdd.tables["voeux"]).filter(bdd.tables["voeux"].spectacle_id.in_([spectacle.id for spectacle in spectacles_bdd])).all()
         # Récupération des clients liés à ces voeux
@@ -222,10 +222,8 @@ def load(saison, reloading=False):
         # Récupération des participations de ces clients à cette saison
         participations_bdd = bdd.session.query(bdd.tables["participations"]).filter(bdd.tables["participations"].client_id.in_([client.id for client in clients_bdd])).filter_by(saison_id=config.saison.id).all()
 
-        print(spectacles_bdd)
         # Passage aux objets enrichis (dans cet ordre, car dataclasses.Voeu() a besoin de config.clients et config.spectacles)
         config.salles = [dataclasses.Salle(salle) for salle in salles_bdd]
-        print(spectacles_bdd)
         config.spectacles = [dataclasses.Spectacle(spectacle) for spectacle in spectacles_bdd]
         config.clients = [dataclasses.Client(client) for client in clients_bdd]
         config.voeux = [dataclasses.Voeu(voeu) for voeu in voeux_bdd]

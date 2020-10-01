@@ -103,7 +103,7 @@ def refresh_listes():
         pass
 
 
-      
+
 #---------------------------- SOUS-CLASSES TKINTER -----------------------------
 
 class Toplevel(tk.Toplevel):
@@ -126,9 +126,11 @@ class SortableTreeview(ttk.Treeview):
     Le tri est fait par le module natsort (pypi.org/project/natsort) qui propose un tri « naturel » ("1" < "2" < "12" au lieu de "1" < "12" < "2", par exemple)
     """
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, footer=False, **kwargs):
         """Initialize self."""
         super().__init__(*args, **kwargs)
+        self.footer = footer
+
         self.sort_column = None
         self.sort_down = False
 
@@ -177,7 +179,11 @@ class SortableTreeview(ttk.Treeview):
         self.sort_down = sort_down
 
         items = list(self.get_children())
+        if self.footer:                     # Si footer : on l'enlève
+            footer_item = items.pop(-1)
         items.sort(key=natsort.natsort_keygen(lambda item: self.get(item, column)), reverse=sort_down)
+        if self.footer:
+            items.append(footer_item)       # Puis on le remet une fois trié
         self.set_children("", *items)
 
     def reset(self):
@@ -199,33 +205,42 @@ class FilterableTreeview(SortableTreeview):
 
     *args et **kwargs sont directement passés à SortableTreeview.
     """
-    def __init__(self, *args, filter_column=None, **kwargs):
+    def __init__(self, *args, filter_column=None, footer=None, **kwargs):
         """Initialize self."""
-        super().__init__(*args, **kwargs)
+        super().__init__(*args, footer=footer, **kwargs)
         self.filter_column = filter_column
         self.validatecommand = self.register(self.validatecommand_callback)     # Fonction à passer à ttk.Entry
         # Syntaxe : ttk.Entry(parent, validate="key", validatecommand=(<FilterableTreeview instance>.validatecommand, "%P"))
         self.detached = []          # Items actuellement masqués
+        self.footer = footer
 
     def filter(self, column, motif):
         """Filtre les entrées du Treeview pour ne laisser que celles telle que <motif> soit dans la colonne <clumn>"""
         def correspond(item, motif):
             return unidecode.unidecode(motif).lower() in unidecode.unidecode(self.get(item, column)).lower()
 
-        for item in self.get_children():
-            if not correspond(item, motif):
-                self.detach(item)
+        items = list(self.get_children())
+        if self.footer:                     # Si footer :
+            footer_item = items.pop(-1)         # on le détache
+            self.detach(footer_item)
+
+        for item in items:
+            if not correspond(item, motif):     # on filtre :
+                self.detach(item)               # on détache les items qui ne correspondent plus
                 self.detached.append(item)
 
         reattached = False
         for item in self.detached.copy():
-            if correspond(item, motif):
+            if correspond(item, motif):         # et on réattache ceux qui correspondent
                 self.reattach(item, "", "end")
                 self.detached.remove(item)
                 reattached = True
 
+        if self.footer:                     # on réattache le footer
+            self.reattach(footer_item, "", "end")
+
         if reattached:          # On a réattaché des items
-            self.sort()             # On re-trie sur les critères actuels, le cas échéant
+            self.sort()             # On re-trie sur les critères actuels, le cas échéant (gère le footer lui-même)
 
     def reset(self):
         """Supprime tous les items, l'indicateur de tri, et réinitialise les variables internes"""
@@ -237,7 +252,8 @@ class FilterableTreeview(SortableTreeview):
     def validatecommand_callback(self, motif):
         """Fonction appellée à chaque modification de l'instance ttk.Entry
 
-        Syntaxe : ttk.Entry(parent, validate="key", validatecommand=(<FilterableTreeview instance>.validatecommand, "%P"))"""
+        Syntaxe : ttk.Entry(parent, validate="key", validatecommand=(<FilterableTreeview instance>.validatecommand, "%P"))
+        """
         if self.filter_column:
             self.filter(self.filter_column, motif)
             return True
@@ -258,11 +274,14 @@ class ItemsTreeview(FilterableTreeview):
     [id_size]       taille de la colonne ID (défaut : 0, i.e. ne pas afficher l'ID)
     [id_stretch]    déformabilité de la colonne ID (défaut : False)
 
+    [footer_values] ligne "footer" à ajouter : toujours affichée en dernier, même si tri / filtrage / insertion... (défaut : None)
+    [footer_id]     ID associé au footer (défaut : None)
+
     **kwargs        arguments directement passés à ttk.Treeview
     """
-    def __init__(self, parent, columns, insert_func, sizes=None, stretches=None, id_func=lambda item: item.id, id_size=0, id_stretch=False, **kwargs):
+    def __init__(self, parent, columns, insert_func, sizes=None, stretches=None, id_func=lambda item: item.id, id_size=0, id_stretch=False, footer_values=None, footer_id=None, **kwargs):
         """Initialize self."""
-        super().__init__(parent, columns=columns, **kwargs)
+        super().__init__(parent, columns=columns, footer=bool(footer_id), **kwargs)
         self.column("#0", width=id_size, minwidth=id_size, stretch=id_stretch, anchor=tk.W)
         if not sizes:
             sizes = [None]*len(columns)
@@ -276,16 +295,29 @@ class ItemsTreeview(FilterableTreeview):
         self.insert_func = insert_func
         self.id_func = id_func
 
+        self.footer_values = footer_values
+        self.footer_id = footer_id
+        self.footer_packed = False
+
     def insert(self, *items, index="end"):
         """Insère <*items> à la position <index>, en utilisant les fonctions d'insertion définies à la création du Treeview"""
         self.items.extend(items)
+        if self.footer_packed and index == "end":       # Ajout à la fin et footer affiché : l'enlève
+            super().delete(self.footer_id)
+            self.footer_packed = False
+
         for item in items:
             super().insert("", index, iid=self.id_func(item), values=self.insert_func(item))
+
+        if self.footer_id and index == "end" and not self.footer_packed:       # Ajout à la fin et footer non affiché : l'affiche
+            self.footer_packed = True
+            super().insert("", "end", iid=self.footer_id, values=self.footer_values)
 
     def reset(self):
         """Supprime tous les items, l'indicateur de tri, et réinitialise les variables internes"""
         super().reset()
         self.items = []
+        self.footer_packed = False
 
     def refresh(self):
         """Recalcule les attributs de chaque item"""

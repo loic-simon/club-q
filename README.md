@@ -19,6 +19,7 @@ Python program implementing a graphical interface for allocating show tickets to
 * [v2.1] Publication des fiches élèves individuelles sur le serveur d'inscription
 * [v2.1] Envoi des fiches élèves individuelles par mail
 * [v2.2] Génération d'un fichier Excel récapitulant les sommes à payer
+* [v2.3] Création d'un nouveau vœu pour un élève existant
 
 ## Installation
 
