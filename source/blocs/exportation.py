@@ -38,7 +38,7 @@ def open_file(filepath):
 def exporter_fiches_eleves():
     lien_dossier = tk.filedialog.askdirectory(title="Sélectionnez un dossier pour exporter les fiches PDF individuelles :")
     if lien_dossier:        # Dossier sélectionné (pas Annuler)
-        with tools.ContextPopup(config.root, "Exportation...") as popup:
+        with config.ContextPopup(config.root, "Exportation...") as popup:
             N_pdf = len(config.clients)
             for i_pdf, client in enumerate(config.clients):
                 pdf_client(client, lien_dossier, open_pdf=False, i_pdf=i_pdf, N_pdf=N_pdf, popup=popup)
@@ -50,7 +50,7 @@ def exporter_fiches_eleves():
 def exporter_fiches_spectacles():
     lien_dossier = tk.filedialog.askdirectory(title="Sélectionnez un dossier où les fiches spectacles seront exportées :")
     if lien_dossier:        # Dossier sélectionné (pas Annuler)
-        with tools.ContextPopup(config.root, "Exportation...") as popup:
+        with config.ContextPopup(config.root, "Exportation...") as popup:
             for spec in config.spectacles:
                 pdf_spectacle(spec, lien_dossier, open_pdf=False, popup=popup)
 

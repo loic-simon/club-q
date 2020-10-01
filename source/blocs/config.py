@@ -252,7 +252,7 @@ class Voeu():
     def __init__(self, bdd_voeu):
         """Initialize self à partir d'une entrée de BDD existante"""
         # @dataclass => self.id, elf.client_id, self.spectacle_id, self.places_demandees,
-        #               self.priorite, self.places_minimum, self.statut, self.places_attribuees
+        #               self.priorite, self.places_minimum, self.places_attribuees
 
         self.client = tools.get(clients, id=self.client_id)
         self.spectacle = tools.get(spectacles, id=self.spectacle_id)
