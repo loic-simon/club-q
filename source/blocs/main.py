@@ -6,7 +6,7 @@ import tkinter.messagebox, tkinter.simpledialog
 from tkinter import ttk
 import importlib
 
-from . import config, bdd, tools, fichier, attribution, exportation, publication, fiches, assistant
+from . import config, dataclasses, bdd, tools, fichier, attribution, exportation, publication, fiches, assistant
 
 
 # Variables globales
@@ -75,6 +75,7 @@ def build_root():
         stretches=[True, False, False, False, False],
         filter_column="Nom",
         height=7, selectmode="browse",
+        # footer_id=-1, footer_values=["[Ajouter un élève]", "", "", "", ""],
     )
     config.liste_clients.grid(row=1, column=0, sticky=tk.NSEW, padx=(10, 0), pady=(0, 10))
     config.liste_clients.bind("<Double-Button-1>", fiches.fiche_client)
@@ -171,7 +172,7 @@ def unlock():
 #-------------------------- CONNEXION AU SERVEUR ---------------------------
 
 def connect():
-    """Connexion au serveur"""
+    """Connexion au serveur, armement des dataclasses"""
     with config.ContextPopup(config.root, "Connexion au serveur..."):
         try:
             bdd.connect()
@@ -180,6 +181,9 @@ def connect():
 
         assert bdd.session, "Erreur de connexion BDD : impossible de démarrer une session"
         assert bdd.tables, "Erreur de connexion BDD : aucune table trouvée"
+
+        for cls in dataclasses.DataClass.subclasses:
+            cls.arm_dataclass(bdd.tables)
 
 
 #--------------------------- CHARGEMENT DONNÉES ----------------------------
@@ -218,12 +222,12 @@ def load(saison, reloading=False):
         # Récupération des participations de ces clients à cette saison
         participations_bdd = bdd.session.query(bdd.tables["participations"]).filter(bdd.tables["participations"].client_id.in_([client.id for client in clients_bdd])).filter_by(saison_id=config.saison.id).all()
 
-        # Passage aux objets enrichis (dans cet ordre, car config.Voeu() a besoin de config.clients et config.spectacles)
-        config.salles = [config.Salle(salle) for salle in salles_bdd]
-        config.spectacles = [config.Spectacle(spectacle) for spectacle in spectacles_bdd]
-        config.clients = [config.Client(client) for client in clients_bdd]
-        config.voeux = [config.Voeu(voeu) for voeu in voeux_bdd]
-        config.participations = [config.Participation(partic) for partic in participations_bdd]
+        # Passage aux objets enrichis (dans cet ordre, car dataclasses.Voeu() a besoin de config.clients et config.spectacles)
+        config.salles = [dataclasses.Salle(salle) for salle in salles_bdd]
+        config.spectacles = [dataclasses.Spectacle(spectacle) for spectacle in spectacles_bdd]
+        config.clients = [dataclasses.Client(client) for client in clients_bdd]
+        config.voeux = [dataclasses.Voeu(voeu) for voeu in voeux_bdd]
+        config.participations = [dataclasses.Participation(partic) for partic in participations_bdd]
 
         # Remplissage des treeviews
         config.liste_spectacles.insert(*config.spectacles)
@@ -245,7 +249,7 @@ def load(saison, reloading=False):
 def load_saisons_and_current():
     # Récupération des saisons, détection saison en cours
     bdd_saisons = bdd.session.query(bdd.tables["saisons"]).all()
-    config.saisons = [config.Saison(saison) for saison in bdd_saisons]
+    config.saisons = [dataclasses.Saison(saison) for saison in bdd_saisons]
     config.saison = max(config.saisons, key=lambda s:s.debut)
 
 

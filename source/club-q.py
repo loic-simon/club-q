@@ -11,7 +11,7 @@ from PIL import Image, ImageTk
 from blocs import config, bdd, main, assistant
 
 
-version = "2.2.2"
+version = "2.2.3"
 
 welcome_text = """Bienvenue dans le programme d'attribution des places du Club Q !
 

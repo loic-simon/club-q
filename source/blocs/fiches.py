@@ -5,7 +5,7 @@ from tkinter import ttk
 
 import webbrowser
 
-from . import config, tools, exportation, publication
+from . import config, dataclasses, bdd, tools, exportation, publication
 
 
 def fiche_client(event, client=None):
@@ -68,8 +68,9 @@ def fiche_client(event, client=None):
         sizes=[50, 160, 50, 50, 50],
         stretches=[False, True, False, False, False],
         height=7, selectmode="browse",
+        footer_id=-client.id, footer_values=["", "[Ajouter un voeu]", "", "", ""],
     )
-    liste_voeux.insert(*client.voeux())
+    liste_voeux.insert(*client.voeux(), )
     liste_voeux.sort("Prio.")
     liste_voeux.pack(fill=tk.BOTH, padx=10, pady=10, expand=True)
 
@@ -141,7 +142,12 @@ def modif_voeu(event):
     if not selected:
         return
 
-    voeu = tools.get(config.voeux, id=int(selected[0]))
+    selected_id = int(selected[0])
+    if selected_id < 0:   # Nouveau voeu
+        nouveau_voeu(-selected_id, treeview=treeview)
+        return
+
+    voeu = tools.get(config.voeux, id=selected_id)
     spec = voeu.spectacle
     client = voeu.client
 
@@ -192,4 +198,64 @@ def modif_voeu(event):
     ttk.Button(bas, text="Annuler", command=modif.destroy).grid(row=0, column=0, padx=2)
     ttk.Button(bas, text="Modifier", command=valider).grid(row=0, column=1, padx=2)
     ttk.Button(bas, text="Mettre 0 places", command=valider_zero).grid(row=0, column=2, padx=2)
+    bas.pack(padx=2, pady=5)
+
+
+
+def nouveau_voeu(client_id, treeview=None):
+    client = tools.get(config.clients, id=client_id)
+
+    nouv = config.Toplevel(treeview.winfo_toplevel())
+    nouv.title("Nouveau voeu")
+    nouv.resizable(False, False)
+
+    haut1 = ttk.Frame(nouv)
+    labels_info = tools.labels_grid(haut1, [
+            [f"Élève : {client.prenom} {client.nom}",       f"Voeux déjà formulés : {len(client.voeux())}"],
+            # [f"Spectacle : {spec.nom}",                     f"Places restantes :  {spec.nb_places_restantes()}"],
+        ], padx=5, pady=2)
+
+
+    tools.underline_label(labels_info[0][0])
+    labels_info[0][0].bind("<Button-1>", lambda event: fiche_client(event, client))
+    haut1.pack(padx=5, pady=5)
+
+
+    haut2 = ttk.Frame(nouv)
+
+    spec_name = tk.StringVar()
+    spectacles_dropdown = ttk.OptionMenu(haut2, spec_name, "", *(spec.nom for spec in config.spectacles))
+
+    placesdem_spinbox = ttk.Spinbox(haut2, width=10, from_=1, to=50)
+    placesmin_spinbox = ttk.Spinbox(haut2, width=10, from_=1, to=50)
+    prio_spinbox = ttk.Spinbox(haut2, width=10, from_=1, to=50)
+    prio_spinbox.set(len(client.voeux()) + 1)
+
+    tools.labels_grid(haut2, [
+            ["Spectacle :",                 spectacles_dropdown],
+            [f"Places demandées : ",        placesdem_spinbox],
+            [f"Places minimum : ",          placesmin_spinbox],
+            [f"Priorité : ",                prio_spinbox],
+        ], padx=5, pady=2)
+    haut2.pack(padx=5, pady=5)
+
+    def ajouter():
+        spec = tools.get(config.spectacles, nom=spec_name.get())
+        placesdem = int(placesdem_spinbox.get() or 1)
+        placesmin = int(placesmin_spinbox.get() or 1)
+        prio = int(prio_spinbox.get() or 1)
+
+        voeu = dataclasses.Voeu(session=bdd.session, client_id=client.id, spectacle_id=spec.id, places_demandees=placesdem, places_minimum=placesmin, priorite=prio)
+        config.voeux.append(voeu)
+
+        config.refresh_listes()
+        if treeview:
+            treeview.insert(voeu)
+
+        nouv.destroy()
+
+
+    bas = ttk.Frame(nouv)
+    ttk.Button(bas, text="Annuler", command=nouv.destroy).grid(row=0, column=0, padx=2)
+    ttk.Button(bas, text="Ajouter", command=ajouter).grid(row=0, column=1, padx=2)
     bas.pack(padx=2, pady=5)

@@ -103,249 +103,6 @@ def refresh_listes():
         pass
 
 
-#----------------------------- CLASSES DE DONNÉES ------------------------------
-
-def dataclass(initfunc):
-    """Décorateur pour les fonctions __init__ des classes de données : définit self.bdd_cols, self.bdd_item et tous les attributs de données"""
-    def new_initfunc(self, bdd_item):
-        self.bdd_item = bdd_item
-        self.bdd_cols = list(bdd_item.__dict__.keys())        # Noms des colonnes de la table
-        for attr in self.bdd_cols:
-            setattr(self, attr, getattr(bdd_item, attr))
-
-        initfunc(self, bdd_item)        # Reste de l'initialisation
-
-    return new_initfunc
-
-
-class Saison():
-    """Saison Qlturelle
-
-    Classe de données liée à la table "saisons" : toutes les colonnes de cette tables (self.bdd_cols) sont des attributs des instances de cette classe, qui contient l'objet SQLAlchemy associé dans self.bdd_item
-    """
-    @dataclass
-    def __init__(self, bdd_saison):
-        """Initialize self à partir d'une entrée de BDD existante"""
-        # @dataclass => self.id, self.nom, self.promo_orga, self.debut, self.fin, self.debut_inscription, self.fin_inscription
-
-    def __repr__(self):
-        """Returns repr(self)"""
-        return f"<Saison #{self.id} ({self.nom})>"
-
-
-class Salle():
-    """Salle de spectacles
-
-    Classe de données liée à la table "salles" : toutes les colonnes de cette tables (self.bdd_cols) sont des attributs des instances de cette classe, qui contient l'objet SQLAlchemy associé dans self.bdd_item
-    """
-    @dataclass
-    def __init__(self, bdd_salle):
-        """Initialize self à partir d'une entrée de BDD existante"""
-        # @dataclass => self.id, self.nom, self.description, self.image_path,
-        #               self.url, self.adresse, self.latitude, self.longitude
-
-    def __repr__(self):
-        """Returns repr(self)"""
-        return f"<Salle #{self.id} ({self.nom})>"
-
-
-class Participation():
-    """Participation d'un client à une saison
-
-    Classe de données liée à la table "participations" : toutes les colonnes de cette tables (self.bdd_cols) sont des attributs des instances de cette classe, qui contient l'objet SQLAlchemy associé dans self.bdd_item
-    """
-    @dataclass
-    def __init__(self, bdd_saison):
-        """Initialize self à partir d'une entrée de BDD existante"""
-        # @dataclass => self.id, self.client_id, self.saison_id, self.mecontentement, self.fiche_path
-
-        self.client = tools.get(config.clients, id=self.client_id)
-        self.saison = tools.get(config.saisons, id=self.saison_id)
-
-    def __repr__(self):
-        """Returns repr(self)"""
-        return f"<Inscription #{self.id} ({self.client}/{self.saison})>"
-
-
-class Client():
-    """Client achetant des places
-
-    Classe de données liée à la table "clients" : toutes les colonnes de cette tables (self.bdd_cols) scont des attributs des instances de cette classe, qui contient l'objet SQLAlchemy associé dans self.bdd_item
-    """
-    @dataclass
-    def __init__(self, bdd_client):
-        """Initialize self à partir d'une entrée de BDD existante"""
-        # @dataclass => self.id, self.id_wp, self.nom, self.prenom, self.promo, self.autre, self.email
-        #               self.mecontentement, self.mecontentement_precedent, self.saison_actuelle_mec, self.a_payer
-
-        self.nomprenom = f"{self.nom.upper()} {self.prenom.title()}"
-
-    def __repr__(self):
-        """Returns repr(self)"""
-        return f"<Client #{self.id} ({self.nomprenom})>"
-
-    def voeux(self):
-        """Renvoie la liste des voeux émis par ce client"""
-        return [voeu for voeu in voeux if voeu.client_id == self.id]
-
-    def attributions(self):
-        """Renvoie la liste des voeux exaucés (places attribués) pour ce client"""
-        return [voeu for voeu in self.voeux() if voeu.places_attribuees]
-
-    def nb_places_demandees(self):
-        """Renvoie le nombre total de places demandées par ce client"""
-        return sum(voeu.places_demandees or 0 for voeu in self.voeux())
-
-    def nb_places_attribuees(self):
-        """Renvoie le nombre total de places attribuées à ce client"""
-        return sum(voeu.places_attribuees for voeu in self.attributions())
-
-    def calcul_a_payer(self):
-        """Renvoie la somme totale due par ce client à ce stade de l'attribution"""
-        return sum(voeu.places_attribuees*voeu.spectacle.unit_price for voeu in self.attributions())
-
-    def verif_priorites(self):
-        """Affiche un avertissement si les priorités du client sont illégales (différentes de 1, 2, ..., N_voeux)"""
-        priorites = sorted(voeu.priorite for voeu in self.voeux())
-        if priorites != list(range(1, len(priorites) + 1)):
-            tk.messagebox.showwarning(title="Priorités illégales", message=f"Priorité des voeux illégale pour {self.nomprenom} :\n{priorites}")
-
-    def init_mecontentement(self):
-        """Initialise le mécontentement du client à partir des différentes sources liées au client et à ses voeux (exaucés et comblés)"""
-        # Si la saison actuelle n'est pas encore celle là, on change et on enregistre le mécontentement "actuel" comme mécontentement précédent
-        if self.saison_actuelle_mec != saison.id:
-            self.mecontentement_precedent = self.mecontentement
-            self.saison_actuelle_mec = saison.id
-
-        # Mécontentement de la saison précédente + celui ajouté arbitrairement dans la fiche élève :
-        self.mecontentement = self.mecontentement_precedent or 0
-
-        # Mécontentement lié au nombre de voeux : si l'élève a moins de voeux que le nombre moyen, son mécontentement augmente, il est favorisé :
-        self.mecontentement += 0.9**(len(self.voeux()) - 1)
-
-        # Idem pour le nombre total de places demandées :
-        self.mecontentement += 2/self.nb_places_demandees()
-
-        # Bonus/malus selon la promo :
-        if self.promo == promo_1A:
-            self.mecontentement += bonus_1A
-        elif self.promo == promo_1A - 1:        # 2A
-            self.mecontentement += bonus_2A
-        elif self.promo == promo_1A - 2:        # 3A
-            self.mecontentement += bonus_3A
-        elif self.promo == promo_1A - 3:        # 4A
-            self.mecontentement += bonus_4A
-        else:
-            self.mecontentement += bonus_autre
-
-        # Malus selon les voeux déjà attribués pour cette saison : -0.5^priorité par voeu comblé
-        for voeu in self.attributions():
-            self.mecontentement += voeu.delta_mec()
-
-
-class Voeu():
-    """Voeu / attribution d'un client pour un spectacle
-
-    Classe de données liée à la table "voeux" : toutes les colonnes de cette tables (self.bdd_cols) sont des attributs des instances de cette classe, qui contient l'objet SQLAlchemy associé dans self.bdd_item
-    """
-    @dataclass
-    def __init__(self, bdd_voeu):
-        """Initialize self à partir d'une entrée de BDD existante"""
-        # @dataclass => self.id, elf.client_id, self.spectacle_id, self.places_demandees,
-        #               self.priorite, self.places_minimum, self.places_attribuees
-
-        self.client = tools.get(clients, id=self.client_id)
-        self.spectacle = tools.get(spectacles, id=self.spectacle_id)
-
-    def __repr__(self):
-        """Returns repr(self)"""
-        return f"<Voeu #{self.id} ({self.client}/{self.spectacle})>"
-
-    def delta_mec(self):
-        """Mécontentement ajouté lors de l'attribution du voeu"""
-        return -0.5**self.priorite
-
-    def attribuer(self, places):
-        """Définit le nombre de places attribuées du voeu à <places> et modifie le mécontentement et la somme à payer du client en conséquence"""
-        if (not self.places_attribuees) and places:         # Voeu -> attribution
-            self.client.mecontentement += self.delta_mec()
-        elif self.places_attribuees and (not places):       # Attribution -> voeu
-            self.client.mecontentement -= self.delta_mec()
-
-        self.places_attribuees = places
-        self.client.a_payer = self.client.calcul_a_payer()
-
-
-class Spectacle():
-    """Spectacle pour lequel des places sont proposées
-
-    Classe de données liée à la table "spectacles" : toutes les colonnes de cette tables (self.bdd_cols) sont des attributs des instances de cette classe, qui contient l'objet SQLAlchemy associé dans self.bdd_item
-    """
-    @dataclass
-    def __init__(self, bdd_spectacle):
-        """Initialize self à partir d'une entrée de BDD existante"""
-        # @dataclass => self.id, self.saison_id, self.nom, self.categorie, self.description, self.affiche_path,
-        #               self.salle_id, self.dateheure, self.nb_tickets, self.unit_price, self.score
-
-        self.date = self.dateheure.strftime("%d/%m/%Y") if self.dateheure else "???"
-        self.heure = self.dateheure.strftime("%H:%M") if self.dateheure else "???"
-
-        self.saison = tools.get(saisons, id=self.saison_id)
-        self.salle = tools.get(salles, id=self.salle_id)
-
-    def __repr__(self):
-        """Returns repr(self)"""
-        return f"<Spectacle #{self.id} ({self.nom})>"
-
-    def lieu(self):
-        """Renvoie le nom de la salle de ce spectacle"""
-        return self.salle.nom if self.salle else "???"
-
-    def voeux(self):
-        """Renvoie la liste des voeux émis pour ce spectacles"""
-        return [voeu for voeu in voeux if voeu.spectacle_id == self.id]
-
-    def attributions(self):
-        """Renvoie la liste des voeux attribués pour ce spectacles"""
-        return [voeu for voeu in self.voeux() if voeu.places_attribuees]
-
-    def nb_places_demandees(self):
-        """Renvoie le nombre total de places demandées pour ce spectacle"""
-        return sum(voeu.places_demandees or 0 for voeu in self.voeux())
-
-    def nb_places_attribuees(self):
-        """Renvoie le nombre total de places attribuées pour ce spectacle"""
-        return sum(voeu.places_attribuees or 0 for voeu in self.voeux())
-
-    def nb_places_restantes(self):
-        """Renvoie le nombre total de places encore disponibles pour ce spectacle"""
-        return (self.nb_tickets - self.nb_places_attribuees())
-
-    def liste_eleve_desirant_spec(self):
-        """Prend un objet spectacle en argument et renvoie une liste de type ['Vidon Guillaume 3 places voeu1", "Mosso ...']"""
-        L = []
-        for voeu in self.voeux():
-            client = voeu.client
-            L.append(f"{client.prenom} {client.nom} \t {voeu.places_demandees} places demandées - vœu n° {voeu.priorite}")
-        return L
-
-    def liste_eleve_ayant_spec(self):
-        """Prend un objet spectacle en argument et renvoie une liste de type ['Vidon Guillaume 3 places voeu1", "Mosso ...']"""
-        L = []
-        for voeu in self.voeux():
-            if voeu.places_attribuees:
-                client = voeu.client
-                L.append(f"{client.prenom} {client.nom} \t {voeu.places_attribuees} places attribuées / {voeu.places_demandees} demandées - vœu n° {voeu.priorite}")
-        return L
-
-    def nbplacesamodifier(self):
-        """Méthode d'un spectacle qui renvoie le nombre de places supplémentaires à demander ou le nombre à retirer"""
-        if (nbplacesspectacle(self) > self.places_demandees):
-            return ("Il faudrait demander " + str(nbplacesspectacle(self)-self.places_demandees) + " places en plus")
-        else:
-            return ("Il faudrait retirer " + str(self.places_demandees-nbplacesspectacle(self)) + " places")
-
-
 
 #---------------------------- SOUS-CLASSES TKINTER -----------------------------
 
@@ -369,9 +126,11 @@ class SortableTreeview(ttk.Treeview):
     Le tri est fait par le module natsort (pypi.org/project/natsort) qui propose un tri « naturel » ("1" < "2" < "12" au lieu de "1" < "12" < "2", par exemple)
     """
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, footer=False, **kwargs):
         """Initialize self."""
         super().__init__(*args, **kwargs)
+        self.footer = footer
+
         self.sort_column = None
         self.sort_down = False
 
@@ -420,7 +179,11 @@ class SortableTreeview(ttk.Treeview):
         self.sort_down = sort_down
 
         items = list(self.get_children())
+        if self.footer:                     # Si footer : on l'enlève
+            footer_item = items.pop(-1)
         items.sort(key=natsort.natsort_keygen(lambda item: self.get(item, column)), reverse=sort_down)
+        if self.footer:
+            items.append(footer_item)       # Puis on le remet une fois trié
         self.set_children("", *items)
 
     def reset(self):
@@ -442,33 +205,42 @@ class FilterableTreeview(SortableTreeview):
 
     *args et **kwargs sont directement passés à SortableTreeview.
     """
-    def __init__(self, *args, filter_column=None, **kwargs):
+    def __init__(self, *args, filter_column=None, footer=None, **kwargs):
         """Initialize self."""
-        super().__init__(*args, **kwargs)
+        super().__init__(*args, footer=footer, **kwargs)
         self.filter_column = filter_column
         self.validatecommand = self.register(self.validatecommand_callback)     # Fonction à passer à ttk.Entry
         # Syntaxe : ttk.Entry(parent, validate="key", validatecommand=(<FilterableTreeview instance>.validatecommand, "%P"))
         self.detached = []          # Items actuellement masqués
+        self.footer = footer
 
     def filter(self, column, motif):
         """Filtre les entrées du Treeview pour ne laisser que celles telle que <motif> soit dans la colonne <clumn>"""
         def correspond(item, motif):
             return unidecode.unidecode(motif).lower() in unidecode.unidecode(self.get(item, column)).lower()
 
-        for item in self.get_children():
-            if not correspond(item, motif):
-                self.detach(item)
+        items = list(self.get_children())
+        if self.footer:                     # Si footer :
+            footer_item = items.pop(-1)         # on le détache
+            self.detach(footer_item)
+
+        for item in items:
+            if not correspond(item, motif):     # on filtre :
+                self.detach(item)               # on détache les items qui ne correspondent plus
                 self.detached.append(item)
 
         reattached = False
         for item in self.detached.copy():
-            if correspond(item, motif):
+            if correspond(item, motif):         # et on réattache ceux qui correspondent
                 self.reattach(item, "", "end")
                 self.detached.remove(item)
                 reattached = True
 
+        if self.footer:                     # on réattache le footer
+            self.reattach(footer_item, "", "end")
+
         if reattached:          # On a réattaché des items
-            self.sort()             # On re-trie sur les critères actuels, le cas échéant
+            self.sort()             # On re-trie sur les critères actuels, le cas échéant (gère le footer lui-même)
 
     def reset(self):
         """Supprime tous les items, l'indicateur de tri, et réinitialise les variables internes"""
@@ -480,7 +252,8 @@ class FilterableTreeview(SortableTreeview):
     def validatecommand_callback(self, motif):
         """Fonction appellée à chaque modification de l'instance ttk.Entry
 
-        Syntaxe : ttk.Entry(parent, validate="key", validatecommand=(<FilterableTreeview instance>.validatecommand, "%P"))"""
+        Syntaxe : ttk.Entry(parent, validate="key", validatecommand=(<FilterableTreeview instance>.validatecommand, "%P"))
+        """
         if self.filter_column:
             self.filter(self.filter_column, motif)
             return True
@@ -501,11 +274,14 @@ class ItemsTreeview(FilterableTreeview):
     [id_size]       taille de la colonne ID (défaut : 0, i.e. ne pas afficher l'ID)
     [id_stretch]    déformabilité de la colonne ID (défaut : False)
 
+    [footer_values] ligne "footer" à ajouter : toujours affichée en dernier, même si tri / filtrage / insertion... (défaut : None)
+    [footer_id]     ID associé au footer (défaut : None)
+
     **kwargs        arguments directement passés à ttk.Treeview
     """
-    def __init__(self, parent, columns, insert_func, sizes=None, stretches=None, id_func=lambda item: item.id, id_size=0, id_stretch=False, **kwargs):
+    def __init__(self, parent, columns, insert_func, sizes=None, stretches=None, id_func=lambda item: item.id, id_size=0, id_stretch=False, footer_values=None, footer_id=None, **kwargs):
         """Initialize self."""
-        super().__init__(parent, columns=columns, **kwargs)
+        super().__init__(parent, columns=columns, footer=bool(footer_id), **kwargs)
         self.column("#0", width=id_size, minwidth=id_size, stretch=id_stretch, anchor=tk.W)
         if not sizes:
             sizes = [None]*len(columns)
@@ -519,16 +295,29 @@ class ItemsTreeview(FilterableTreeview):
         self.insert_func = insert_func
         self.id_func = id_func
 
+        self.footer_values = footer_values
+        self.footer_id = footer_id
+        self.footer_packed = False
+
     def insert(self, *items, index="end"):
         """Insère <*items> à la position <index>, en utilisant les fonctions d'insertion définies à la création du Treeview"""
         self.items.extend(items)
+        if self.footer_packed and index == "end":       # Ajout à la fin et footer affiché : l'enlève
+            super().delete(self.footer_id)
+            self.footer_packed = False
+
         for item in items:
             super().insert("", index, iid=self.id_func(item), values=self.insert_func(item))
+
+        if self.footer_id and index == "end" and not self.footer_packed:       # Ajout à la fin et footer non affiché : l'affiche
+            self.footer_packed = True
+            super().insert("", "end", iid=self.footer_id, values=self.footer_values)
 
     def reset(self):
         """Supprime tous les items, l'indicateur de tri, et réinitialise les variables internes"""
         super().reset()
         self.items = []
+        self.footer_packed = False
 
     def refresh(self):
         """Recalcule les attributs de chaque item"""
