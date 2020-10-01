@@ -86,11 +86,11 @@ def pdf_client(client, lien_dossier=None, open_pdf=True, i_pdf=None, N_pdf=None,
         ]
 
 
-        specs = [f"{attrib.spectacle.nom} - {attrib.places_attribuees} place(s) -\t\t {attrib.spectacle.unit_price} €"
+        specs = [f"{attrib.spectacle.nom} - {attrib.places_attribuees} place(s) -\t\t {attrib.spectacle.unit_price} € /place"
                  for attrib in client.attributions()]
 
         specs.append("-"*158)
-        specs.append(f"Total à payer : {client.calcul_a_payer()} €.")
+        specs.append(f"Total à payer : {client.a_payer} €.")
 
 
         # Conversion en objets reportlab
@@ -297,11 +297,13 @@ def exporter_excel_prix():
                 sheet.cell(row=7 + i, column=4).hyperlink = f"mailto:{client.email}"
                 sheet.cell(row=7 + i, column=4).style = "Hyperlink"
 
-            sheet.cell(row=7 + i, column=5).value = client.nb_places_attribuees()
-            npa += client.nb_places_attribuees()
-            sheet.cell(row=7 + i, column=6).value = client.calcul_a_payer()
+            placesattr = client.nb_places_attribuees()
+            sheet.cell(row=7 + i, column=5).value = placesattr
+            npa += placesattr
+            apayer = client.a_payer
+            sheet.cell(row=7 + i, column=6).value = apayer
             sheet.cell(row=7 + i, column=6).number_format = "#,##0.00 €_-"
-            tot += client.calcul_a_payer()
+            tot += apayer
 
 
         # sheet.auto_filter.ref = f"A6:G{7 + i}"

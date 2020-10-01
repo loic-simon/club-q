@@ -266,14 +266,14 @@ class Voeu():
         return -0.5**self.priorite
 
     def attribuer(self, places):
-        """Définit le nombre de places attribuées du voeu à <places> et modifie le mécontentement du client en conséquence"""
+        """Définit le nombre de places attribuées du voeu à <places> et modifie le mécontentement et la somme à payer du client en conséquence"""
         if (not self.places_attribuees) and places:         # Voeu -> attribution
             self.client.mecontentement += self.delta_mec()
         elif self.places_attribuees and (not places):       # Attribution -> voeu
             self.client.mecontentement -= self.delta_mec()
 
-        self.client.a_payer = self.client.calcul_a_payer()
         self.places_attribuees = places
+        self.client.a_payer = self.client.calcul_a_payer()
 
 
 class Spectacle():
