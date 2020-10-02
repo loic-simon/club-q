@@ -30,7 +30,7 @@ else:
 
 #----------------------------- VARIABLES GLOBALES ------------------------------
 
-if len(sys.argv) > 1 and sys.argv[1] == "--debug":
+if "--debug" in sys.argv:
     DEBUG = True
     print("Chargement du programme - mode DEBUG")
 else:

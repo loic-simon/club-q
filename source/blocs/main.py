@@ -33,6 +33,8 @@ class SaisonMenu(ttk.OptionMenu):
 def build_root():
     global frame_saisons, frame_spectacles, frame_clients, menubar
 
+    config.root.protocol("WM_DELETE_WINDOW", fichier.quitter)           # Procédure de quittage (vérifie si modifs pending)
+
     # SAISONS
     frame_saisons = ttk.Frame(config.root)
     ttk.Label(frame_saisons, text="Saison :").grid(row=0, column=0, padx=5, pady=8)
@@ -106,7 +108,7 @@ def build_root():
         menu_fichier.add_command(label="Sauvegarder les données", command=fichier.upload_all)
         menu_fichier.add_separator()
         menu_fichier.add_command(label="Paramètres", command=fichier.parametres)
-        menu_fichier.add_command(label="Quitter", command=config.root.quit)
+        menu_fichier.add_command(label="Quitter", command=fichier.quitter)
         menubar.add_cascade(label="Fichier", menu=menu_fichier)
 
         menubar.add_command(label="Suivi de l'attribution", command=attribution.suivi_process)
@@ -183,7 +185,7 @@ def connect():
         assert bdd.tables, "Erreur de connexion BDD : aucune table trouvée"
 
         for cls in dataclasses.DataClass.subclasses:
-            cls.arm_dataclass(bdd.tables)
+            cls.arm_dataclass(bdd.session, bdd.tables)
 
 
 #--------------------------- CHARGEMENT DONNÉES ----------------------------
@@ -195,6 +197,10 @@ def load(saison, reloading=False):
             # On efface les listes
             config.liste_spectacles.reset()
             config.liste_clients.reset()
+            # On annule les modifications en attente
+            bdd.session.rollback()
+            dataclasses.DataClass.pending_adds = []
+            dataclasses.DataClass.pending_modifs = []
             # On ferme la fenêtre de suivi de l'attribution si elle est ouverte
             if config.fen_suivi and config.fen_suivi.winfo_exists():
                 config.fen_suivi.destroy()

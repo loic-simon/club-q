@@ -62,11 +62,16 @@ L'exécutable ainsi généré est placé par défaut dans le dossier [`source/di
 
 Utiliser l'assistant intégré au programme pour appréhender son utilisation.
 
-Le programme dispose d'une seule option pour un usage en ligne de commande, `--debug`, qui affiche certaines informations au cours de l'exécution du programme.
-
 ### Mot de passe
 
 Le hash du mot de passe du programme et les paramètres sensibles chiffrées peuvent être redéfinis à l'aide du script [`source/gen_new_pass.py`](source/gen_new_pass.py).
+
+### Utilisation en ligne de commande
+Les options suivantes, principalement utiles pour le développement, sont disponibles :
+
+* `--debug` : affiche certaines informations détaillées au cours de l'exécution du programme
+* `--direct` : lance directement la fenêtre principale, sans passer par l'écran d'accueil
+* `--assistant` : lance directement l'assistant d'attribution, sans passer par l'écran d'accueil
 
 
 ## Contributions

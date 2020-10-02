@@ -245,7 +245,7 @@ def nouveau_voeu(client_id, treeview=None):
         placesmin = int(placesmin_spinbox.get() or 1)
         prio = int(prio_spinbox.get() or 1)
 
-        voeu = dataclasses.Voeu(session=bdd.session, client_id=client.id, spectacle_id=spec.id, places_demandees=placesdem, places_minimum=placesmin, priorite=prio)
+        voeu = dataclasses.Voeu(client_id=client.id, spectacle_id=spec.id, places_demandees=placesdem, places_minimum=placesmin, priorite=prio)
         config.voeux.append(voeu)
 
         config.refresh_listes()

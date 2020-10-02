@@ -1,7 +1,7 @@
 import tkinter as tk
 from tkinter import ttk
 
-from . import config, tools
+from . import config, bdd, tools
 
 #----------------------------- CLASSES DE DONNÉES ------------------------------
 
@@ -32,29 +32,30 @@ class DataClass():
         item.bdd_cols           liste des noms des colonnes de <table> ;
         item.<col>              pour chacune des colonnes de <table> (valeurs de item.bdd_cols).
     """
-    subclasses = []         # Liste des classes héritant de DataClass
+    subclasses = []         # Classes héritant de DataClass
+    pending_adds = []       # Objets nouvellement créés (flush mais pas commit), pour toutes les classes
+    pending_modifs = []     # Tuples (objet, colonne, valeur) des modifications d'instances DataClass pas encore commit
 
-    def __init__(self, bdd_item=None, session=None, **kwargs):
+    def __init__(self, bdd_item=None, **kwargs):
         if type(self) is DataClass:
             raise TypeError("DataClass n'est pas directement utilisable. Utiliser des classes dérivées.")
-        if not self.table:
+        if not self.session:
             raise RuntimeError(f"Table \"{self.tablename}\" pas encore armée")
 
-        if bdd_item:        # Création à partir d'un objet existant
-            if not isinstance(bdd_item, self.table):
-                raise TypeError(f"Tentative de création un objet {type(self)} à partir d'un objet {type(bdd_item)}")
-            self.bdd_item = bdd_item
+        if bdd_item:        # Conversion d'une entrée existante
+            if isinstance(bdd_item, self.table):
+                self.bdd_item = bdd_item
+            else:
+                raise TypeError(f"Tentative de conversion d'un objet {type(bdd_item)} en objet {type(self)}")
 
-        elif session:
+        else:               # Création d'une nouvelle entrée
             self.bdd_item = self.table(**kwargs)     # Création d'un nouvel objet BDD : si les kwargs ne sont pas bons, lève une erreur
-            session.add(self.bdd_item)
-            session.flush()         # Envoi de l'objet à la BDD, remplissage ID / valeurs par défaut
-
-        else:
-            raise TypeError("bdd_item ou session doit être spécifié pour les dataclasses")
-
-        for col in self.bdd_cols:       # Passage des attributs
-            setattr(self, col, getattr(self.bdd_item, col))
+            self.session.add(self.bdd_item)
+            self.session.flush()                    # Envoi de l'objet à la BDD, remplissage ID / valeurs par défaut
+            self.pending_adds.append(self)
+        #
+        # for col in self.bdd_cols:       # Passage des attributs
+        #     setattr(self, col, getattr(self.bdd_item, col))
 
     def __repr__(self):
         """Returns repr(self)"""
@@ -62,25 +63,47 @@ class DataClass():
 
 
     def __init_subclass__(cls, tablename, **kwargs):
-        """Méthode initialisant les classes héritant de celle-ci"""
+        """Méthode de classe initialisant les classes héritant de celle-ci"""
         cls.subclasses.append(cls)      # Enregistrement de la classe
 
         cls.tablename = tablename
-        cls.table = None        # On ne peut pas accéder à la table dès l'initialisation (pas encore connecté) : on le fera plus tard
+        cls.session = None      # On ne peut pas accéder à la table dès l'initialisation (pas encore connecté) : on le fera plus tard
 
         super().__init_subclass__(**kwargs)
 
+
     @classmethod
-    def arm_dataclass(cls, tables):
-        """Définit cls.table et ses dérivés à partir des tables SQLAlchemy"""
+    def arm_dataclass(cls, session, tables):
+        """Définit cls.session, cls.table... et toutes les propriétés d'accès / modification des colonnes à partir d'une session active SQLAlchemy et de la liste des tables associées"""
+        cls.session = session
         cls.table = tables[cls.tablename]
         cls.raw_cols = cls.table.__table__.columns
         cls.primary_col = next(col.key for col in cls.raw_cols if col.primary_key)
         cls.bdd_cols = [col.key for col in cls.raw_cols]           # Noms des colonnes de la table
 
+        def fget_for(col):
+            def fget(self):             # Méthode appelée quand on ACCÈDE À self.<col>
+                return getattr(self.bdd_item, col)          # on renvoie l'attribut de l'objet de BDD
+            return fget
 
-    def query(self, session):
-        return session.query(self.table)
+        def fset_for(col):
+            def fset(self, new):        # Méthode appelée quand on MODIFIE self.<col>
+                actual = getattr(self.bdd_item, col)
+                if new != actual:                           # si modification effective :
+                    if config.DEBUG:
+                        print(f" > MODIFIED {self}.{col} : {actual} -> {new}")
+                    setattr(self.bdd_item, col, new)                    # on modifie l'objet de BDD
+                    bdd.flag_modified(self.bdd_item, col)               # on signale la modif à SQLAlchemy
+                    self.pending_modifs.append((self, col, new))        # et on enregistre la modif pour nous
+            return fset
+
+        def fdel_for(col):              # Méthode appelée quand on SUPPRIME (del) self.<col>
+            def fdel(self):
+                raise TypeError(f"del {self}.{col} : Impossible de supprimer un attribut de BDD !")
+            return fdel
+
+        for col in cls.bdd_cols:    # Pour chaque colonne, on définit la propriété (au niveau de la table) : comportement pour accéder à / modifier / supprimer self.<col> (ex. client.nom, voeu.places_demandees)...
+            setattr(cls, col, property(fget_for(col), fset_for(col), fdel_for(col)))
 
 
 

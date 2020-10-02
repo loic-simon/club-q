@@ -4,7 +4,7 @@ import tkinter as tk
 from tkinter import ttk
 from tkinter import messagebox
 
-from . import config, tools, bdd, assistant
+from . import config, dataclasses, tools, bdd, assistant
 
 
 def parametres():
@@ -59,20 +59,29 @@ def reconnect():
 def upload_all():
     if tk.messagebox.askokcancel(title="Sauvegarder les données ?", message="Les données vont être exportées sur le serveur.\nToute attribution précédement envoyée sera écrasée."):
         with config.ContextPopup(config.root, "Sauvegarde en cours..."):
-            for item in config.clients + config.spectacles + config.voeux:
-                for col in item.bdd_cols:                                   # Pour chaque colonne de la table,
-                    if not col.startswith("_"):                                 # (chaque vraie colonne),
-                        if getattr(item, col) != getattr(item.bdd_item, col):       # Si on a modifié la valeur,
-                            if config.DEBUG:
-                                print(f"> MODIFIED < : {item}.{col} = {getattr(item, col)} (avant {getattr(item.bdd_item, col)})")
+            bdd.session.commit()        # Toutes les modifications sont maintenant flag à la volée
 
-                            # (désolé)
-                            setattr(item.bdd_item, col, getattr(item, col))             # on actualise l'argument du vrai item-bdd (qui peut être uploadé)
-                            bdd.flag_modified(item.bdd_item, col)                       # et on flag pour modification
+        tk.messagebox.showinfo(title="Sauvegarde", message="Données sauvegardées :\n"
+            f"  - {len(dataclasses.DataClass.pending_adds)} entrée(s) ajoutée(s)\n"
+            f"  - {len(dataclasses.DataClass.pending_modifs)} attribut(s) modifié(s)\n\n"
+            "(vérifier quand même en rechargeant la saison)"
+        )
 
-        bdd.session.commit()
-
-        tk.messagebox.showinfo(title="Sauvegarde", message="Données sauvegardées ! (normalement, vérifier quand même en rechargeant la saison)")
+        dataclasses.DataClass.pending_adds = []
+        dataclasses.DataClass.pending_modifs = []
 
         if assistant.step == 11:
             assistant.step12()
+
+
+def quitter():
+    if dataclasses.DataClass.pending_adds or dataclasses.DataClass.pending_modifs:      # Modifications non enregistrées
+        really = tk.messagebox.askokcancel(title="Modifications non sauvegardées", message="Les actions suivantes n'ont pas été sauvegardées en base :\n"
+            f"  - {len(dataclasses.DataClass.pending_adds)} nouvelle(s) entrée(s) : {', '.join(str(pend) for pend in dataclasses.DataClass.pending_adds)}\n"
+            f"  - {len(dataclasses.DataClass.pending_modifs)} modification(s) d'attribut(s) : {', '.join('{}.{} = {}'.format(*pend) for pend in dataclasses.DataClass.pending_modifs)}\n\n"
+            "Quitter malgré tout ?"
+        )
+        if really:
+            config.root.quit()
+    else:
+        config.root.quit()

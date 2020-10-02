@@ -11,7 +11,7 @@ from PIL import Image, ImageTk
 from blocs import config, bdd, main, assistant
 
 
-version = "2.2.3"
+version = "2.3.0"
 
 welcome_text = """Bienvenue dans le programme d'attribution des places du Club Q !
 
@@ -114,14 +114,18 @@ try:
     #---------------------------- BOUCLE PRINCIPALE ----------------------------
 
     with tempfile.TemporaryDirectory() as config.tempdir:   # Dossier temporaire, effacé à la fermeture du programme
-        if config.DEBUG:
-            print(f"Dossier temporaire créé : {config.tempdir}")
-            print("Entrée dans la mainloop")
+        if config.DEBUG: print(f"Dossier temporaire créé : {config.tempdir}")
 
-        config.root.mainloop()
+        if "--direct" in sys.argv:
+            if config.DEBUG: print("Option --direct : chargement fenêtre principale")
+            go_direct()
+        elif "--assistant" in sys.argv:
+            if config.DEBUG: print("Option --assistant : chargement assistant")
+            go_assistant()
 
-        if config.DEBUG:
-            print(f"Sortie de la mainloop")
+        if config.DEBUG: print("Entrée dans la mainloop")
+        config.root.mainloop()              # Boucle maître Tkinter, bloquante
+        if config.DEBUG: print(f"Sortie de la mainloop")
 
     if config.DEBUG:
         print(f"Dossier temporaire détruit")
