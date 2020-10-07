@@ -132,7 +132,11 @@ def fiche_spec(event, spec=None):
     liste_voeux.pack(fill=tk.BOTH, padx=10, pady=10, expand=True)
     liste_voeux.bind("<Double-1>", modif_voeu)
 
-    ttk.Button(fen_spec, text="Exporter la fiche", command=lambda: exportation.pdf_spectacle(spec)).pack(pady=10)
+    bas = ttk.Frame(fen_spec)
+    ttk.Button(bas, text="Exporter le PDF", command=lambda: exportation.pdf_spectacle(spec)).grid(row=0, column=0, padx=2)
+    ttk.Button(bas, text="Exporter l'Excel", command=lambda: exportation.excel_spectacle(spec)).grid(row=0, column=1, padx=2)
+    bas.pack(padx=2, pady=5)
+
 
 
 
@@ -245,7 +249,7 @@ def nouveau_voeu(client_id, treeview=None):
         placesmin = int(placesmin_spinbox.get() or 1)
         prio = int(prio_spinbox.get() or 1)
 
-        voeu = dataclasses.Voeu(client_id=client.id, spectacle_id=spec.id, places_demandees=placesdem, places_minimum=placesmin, priorite=prio)
+        voeu = dataclasses.Voeu(client_id=client.id, spectacle_id=spec.id, places_demandees=placesdem, places_minimum=placesmin, priorite=prio, places_attribuees=0)
         config.voeux.append(voeu)
 
         config.refresh_listes()

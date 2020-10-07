@@ -50,9 +50,9 @@ def parametres():
         assistant.step5()
 
 
-def reconnect():
-    bdd.session.rollback()
-    tk.messagebox.showinfo(title="Réparation de la connexion", message="La session a été réinitialisée")
+# def reconnect():
+#     bdd.session.rollback()
+#     tk.messagebox.showinfo(title="Réparation de la connexion", message="La session a été réinitialisée")
 
 
 # J'ai pensé à une structure... pyramidale

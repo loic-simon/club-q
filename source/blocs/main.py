@@ -102,8 +102,8 @@ def build_root():
         menubar = tk.Menu(config.root)
 
         menu_fichier = tk.Menu(menubar, tearoff=False)
-        menu_fichier.add_command(label="Actualiser", command=config.refresh_listes)
-        menu_fichier.add_command(label="Reconnexion", command=fichier.reconnect)
+        menu_fichier.add_command(label="Recalculer les listes", command=config.refresh_listes)
+        # menu_fichier.add_command(label="Reconnexion", command=fichier.reconnect)
         menu_fichier.add_separator()
         menu_fichier.add_command(label="Sauvegarder les données", command=fichier.upload_all)
         menu_fichier.add_separator()
@@ -114,9 +114,11 @@ def build_root():
         menubar.add_command(label="Suivi de l'attribution", command=attribution.suivi_process)
 
         menu_exporter = tk.Menu(menubar, tearoff=False)
-        menu_exporter.add_command(label="Exporter les fiches spectacles", command=exportation.exporter_fiches_spectacles)
         menu_exporter.add_command(label="Exporter les fiches élèves", command=exportation.exporter_fiches_eleves)
         menu_exporter.add_command(label="Exporter l'Excel récapitulatif", command=exportation.exporter_excel_prix)
+        menu_exporter.add_separator()
+        menu_exporter.add_command(label="Exporter les fiches spectacles", command=exportation.exporter_fiches_spectacles)
+        menu_exporter.add_command(label="Exporter les Excels spectacles", command=exportation.exporter_excels_spectacles)
         menubar.add_cascade(label="Exporter", menu=menu_exporter)
 
         menu_publier = tk.Menu(menubar, tearoff=False)
@@ -210,11 +212,6 @@ def load(saison, reloading=False):
     with config.ContextPopup(config.root, "Récupération des données..."):
         config.saison = saison
         config.init_var_glob_saison()
-
-        try:
-            bdd.session.query(bdd.tables["salles"]).all()     # On ping un truc random pour "réveiller" la session (c'est un peu de la sorcellerie mais ça marche... ah on me fait signe que non)
-        except bdd.SQLAlchemyError:
-            bdd.session.rollback()          # Si erreur BDD, toujours rollback dans le doute
 
         # Récupération des salles
         salles_bdd = bdd.session.query(bdd.tables["salles"]).all()

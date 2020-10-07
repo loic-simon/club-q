@@ -11,7 +11,7 @@ from PIL import Image, ImageTk
 from blocs import config, bdd, main, assistant
 
 
-version = "2.3.0"
+version = "2.4.0"
 
 welcome_text = """Bienvenue dans le programme d'attribution des places du Club Q !
 
@@ -68,6 +68,13 @@ def report_exc(exc, val, tb):
 
     if issubclass(exc, bdd.SQLAlchemyError):
         bdd.session.rollback()          # Si erreur BDD, toujours rollback dans le doute
+        # Remise des valeurs en attente dans le flush SQLAlchemy
+        for item in dataclasses.DataClass.pending_adds:
+            bdd.session.add(item.bdd_item)
+        for item, col, val in dataclasses.DataClass.pending_modifs:
+            setattr(item.bdd_item, col, val)
+            bdd.flag_modified(self.bdd_item, col)
+        bdd.session.flush()
         tk.messagebox.showerror(title=f"{config.TITLE} - {exc.__name__}", message=f"Exception lors de l'accès aux données. Cela arrive souvent lorsque du temps passe entre deux appels, une requêtre de reconnexion a été envoyée.\n\nRefaire l'action voulue, ça devrait marcher !", parent=fenetre)
     elif config.DEBUG:
         tk.messagebox.showerror(title=f"{config.TITLE} - {exc.__name__}", message=f"Exception Python :\n{val}\n\n{traceback.format_exc()}", parent=fenetre)

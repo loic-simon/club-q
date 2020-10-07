@@ -22,7 +22,7 @@ def connect():
     global engine, base, tables, session
 
     assert config.DATABASE_URI, "Tentative de connexion BDD avant déchiffrement de l'URI"
-    engine = sqlalchemy.create_engine(config.DATABASE_URI, echo=config.DEBUG, pool_pre_ping=True)           # Moteur SQL : connexion avec le serveur
+    engine = sqlalchemy.create_engine(config.DATABASE_URI, echo=config.DEBUG, pool_pre_ping=True, pool_recycle=120)           # Moteur SQL : connexion avec le serveur
 
     base = sqlalchemy.ext.automap.automap_base()                                # Récupération des tables depuis le shéma de la base
     base.prepare(engine, reflect=True)

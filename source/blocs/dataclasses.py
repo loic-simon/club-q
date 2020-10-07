@@ -90,8 +90,7 @@ class DataClass():
             def fset(self, new):        # Méthode appelée quand on MODIFIE self.<col>
                 actual = getattr(self.bdd_item, col)
                 if new != actual:                           # si modification effective :
-                    if config.DEBUG:
-                        print(f" > MODIFIED {self}.{col} : {actual} -> {new}")
+                    if config.DEBUG: print(f" > MODIFIED {self}.{col} : {actual} -> {new}")
                     setattr(self.bdd_item, col, new)                    # on modifie l'objet de BDD
                     bdd.flag_modified(self.bdd_item, col)               # on signale la modif à SQLAlchemy
                     self.pending_modifs.append((self, col, new))        # et on enregistre la modif pour nous
@@ -102,8 +101,8 @@ class DataClass():
                 raise TypeError(f"del {self}.{col} : Impossible de supprimer un attribut de BDD !")
             return fdel
 
-        for col in cls.bdd_cols:    # Pour chaque colonne, on définit la propriété (au niveau de la table) : comportement pour accéder à / modifier / supprimer self.<col> (ex. client.nom, voeu.places_demandees)...
-            setattr(cls, col, property(fget_for(col), fset_for(col), fdel_for(col)))
+        for rcol in cls.raw_cols:    # Pour chaque colonne, on définit la propriété (au niveau de la table) : comportement pour accéder à / modifier / supprimer self.<col> (ex. client.nom, voeu.places_demandees)...
+            setattr(cls, rcol.key, property(fget_for(rcol.key), fset_for(rcol.key), fdel_for(rcol.key), f"Attribut de BDD : colonne {rcol.key} (type {rcol.type})"))
 
 
 
@@ -148,9 +147,9 @@ class Client(DataClass, tablename="clients"):
         super().__init__(bdd_client, **kwargs)
         # DataClass => self.id, self.id_wp, self.nom, self.prenom, self.promo, self.autre, self.email
         #              self.mecontentement, self.mecontentement_precedent, self.saison_actuelle_mec, self.a_payer
+        self.mecontentement = self.mecontentement or 0
+
         self.nomprenom = f"{self.nom.upper()} {self.prenom}"
-        if self.mecontentement is None:
-            self.mecontentement = 0
 
     def voeux(self):
         """Renvoie la liste des voeux émis par ce client"""
