@@ -46,7 +46,7 @@ Le point d'entrée du programme est alors [`source/club-q.py`](source/club-q.py)
 Pour installer tous les packages nécessaires, avec [pip](https://pip.pypa.io/en/stable/) (gestionnaire de packages usuel) :
 
 ```bash
-pip install SQLAlchemy PyMySQL reportlab cryptography Unidecode, Pillow, natsort
+pip install -r source/requirements.txt
 ```
 
 ### Geler le code

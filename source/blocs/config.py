@@ -347,8 +347,8 @@ class ContextPopup():
         if self.existing:
             return self.existing
         else:
-            self.fenetre.configure(cursor="wait")
-            self.master.configure(cursor="wait")
+            self.fenetre.configure(cursor="clock")
+            self.master.configure(cursor="clock")
             self.fenetre.update()
             return self
 

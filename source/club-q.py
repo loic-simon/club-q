@@ -8,10 +8,10 @@ from tkinter import ttk
 
 from PIL import Image, ImageTk
 
-from blocs import config, bdd, main, assistant
+from blocs import config, bdd, main, assistant, dataclasses
 
 
-version = "2.4.0"
+version = "2.4.1"
 
 welcome_text = """Bienvenue dans le programme d'attribution des places du Club Q !
 
@@ -73,7 +73,7 @@ def report_exc(exc, val, tb):
             bdd.session.add(item.bdd_item)
         for item, col, val in dataclasses.DataClass.pending_modifs:
             setattr(item.bdd_item, col, val)
-            bdd.flag_modified(self.bdd_item, col)
+            bdd.flag_modified(item.bdd_item, col)
         bdd.session.flush()
         tk.messagebox.showerror(title=f"{config.TITLE} - {exc.__name__}", message=f"Exception lors de l'accès aux données. Cela arrive souvent lorsque du temps passe entre deux appels, une requêtre de reconnexion a été envoyée.\n\nRefaire l'action voulue, ça devrait marcher !", parent=fenetre)
     elif config.DEBUG:
