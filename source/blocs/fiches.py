@@ -80,7 +80,7 @@ def fiche_client(event, client=None):
     bas.pack(padx=10, fill=tk.X)
 
     def envoi():
-        filepath = exportation.pdf_client(client, config.tempdir, open_pdf=False)
+        filepath = exportation.pdf_client(client, config.tempdir, open_doc=False)
         publication.personaliser_puis_envoyer_mail({client: filepath})        # Récupère fromnane, objet, corps... et appelle la fonction d'envoi
 
     frame_boutons = ttk.Frame(fen_ele)
